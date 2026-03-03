@@ -76,7 +76,7 @@ private:
     std::chrono::high_resolution_clock::time_point time_back;
 
     void print_elapsed_time() {
-        if (if_verbose)
+        if (if_tinyprofile)
             std::cout << "Time for " << name << ": " << elapsed_time.count() << " sec" << std::endl;
     }
 

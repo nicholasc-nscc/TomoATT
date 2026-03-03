@@ -249,6 +249,7 @@ inline bool if_test = false;
 // verboose mode
 inline bool if_verbose = false;
 //inline bool if_verbose = true;
+inline bool if_tinyprofile = false;
 
 // if use gpu
 inline bool use_gpu;

@@ -106,6 +106,9 @@ inline void parse_options(int argc, char* argv[]){
         if(strcmp(argv[i], "-v") == 0)
             if_verbose = true;
         else if (strcmp(argv[i],"-i") == 0){
+            if_tinyprofile = true;
+        }
+        else if (strcmp(argv[i],"-i") == 0){
             input_file = argv[i+1];
             input_file_found = true;
         }
