@@ -114,6 +114,7 @@ const int NSIMD = 4;
 #define _mmT_sqrt_pT _mm256_sqrt_pd
 #define _mmT_store_pT _mm256_store_pd
 #define _mmT_fmadd_pT _mm256_fmadd_pd
+#define _mmT_max_pT _mm256_max_pd
 
 #define _mm256_cmp_pT _mm256_cmp_pd
 
@@ -132,6 +133,7 @@ const int NSIMD = 8;
 #define _mmT_sqrt_pT _mm512_sqrt_pd
 #define _mmT_store_pT _mm512_store_pd
 #define _mmT_fmadd_pT _mm512_fmadd_pd
+#define _mmT_max_pT _mm512_max_pd
 
 #define __mmaskT __mmask8
 #define _mm512_cmp_pT_mask _mm512_cmp_pd_mask
