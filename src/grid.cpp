@@ -1350,19 +1350,7 @@ void Grid::initialize_fields(Source& src, InputParams& IP){
     if( n_source_node > 0 && if_verbose )
         std::cout << "rank  n_source_node: " << myrank << "  " << n_source_node << std::endl;
 
-    params_loc = (NodeParams*) aligned_alloc(ALIGN, loc_nnodes * sizeof(NodeParams));
 
-    for (int ii = 0; ii < loc_nnodes; ii++) {
-        params_loc[ii].fac_a = fac_a_loc[ii];
-        params_loc[ii].fac_b = fac_b_loc[ii];
-        params_loc[ii].fac_c = fac_c_loc[ii];
-        params_loc[ii].fac_f = fac_f_loc[ii];
-        params_loc[ii].T0v   = T0v_loc[ii];
-        params_loc[ii].T0r   = T0r_loc[ii];
-        params_loc[ii].T0t   = T0t_loc[ii];
-        params_loc[ii].T0p   = T0p_loc[ii];
-        params_loc[ii].fun   = fun_loc[ii];
-    }
 }
 
 

@@ -346,6 +346,20 @@ void Iterator::assign_processes_for_levels(Grid& grid, InputParams& IP) {
     else
         vv_change_bl = preload_array_bl(grid.is_changed);
 
+    params_loc = (NodeParams*) aligned_alloc(ALIGN, loc_nnodes * sizeof(NodeParams));
+
+    for (int ii = 0; ii < loc_nnodes; ii++) {
+        params_loc[ii].fac_a = grid.fac_a_loc[ii];
+        params_loc[ii].fac_b = grid.fac_b_loc[ii];
+        params_loc[ii].fac_c = grid.fac_c_loc[ii];
+        params_loc[ii].fac_f = grid.fac_f_loc[ii];
+        params_loc[ii].T0v   = grid.T0v_loc[ii];
+        params_loc[ii].T0r   = grid.T0r_loc[ii];
+        params_loc[ii].T0t   = grid.T0t_loc[ii];
+        params_loc[ii].T0p   = grid.T0p_loc[ii];
+        params_loc[ii].fun   = grid.fun_loc[ii];
+    }
+    
     // flag for preloading
     simd_allocated = true;
 #endif // USE_SIMD
