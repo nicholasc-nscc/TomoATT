@@ -26,6 +26,12 @@
 #include <cuda.h>
 #endif
 
+struct NodeParams {
+    CUSTOMREAL fac_a, fac_b, fac_c, fac_f;
+    CUSTOMREAL T0v, T0r, T0t, T0p;
+    CUSTOMREAL fun;
+};
+
 class Grid {
 public:
     Grid(InputParams&, IO_utils&);
@@ -195,6 +201,8 @@ public:
 
     // write out inversion grid file
     void write_inversion_grid_file();
+
+    NodeParams* params_loc;
 
 private:
 
