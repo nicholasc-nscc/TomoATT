@@ -398,8 +398,10 @@ inline void vect_stencil_1st_3rd_apre_simd(
     // tmp3 = -2.0 * v_fac_f * tmp1 * tmp2;
     __mT tmp3 = _mmT_mul_pT(v_m2,_mmT_mul_pT(v_fac_f,_mmT_mul_pT(tmp1,tmp2)));
 
-    // Htau = sqrt(Htau + tmp3); // # becamse nan as Htau - tmp3 goes to 0
-    Htau = _mmT_sqrt_pT(_mmT_add_pT(Htau,tmp3));
+    // Clamp the sum to 0.0 before evaluating the square root to prevent NaNs
+    __mT sum_val = _mmT_add_pT(Htau, tmp3);
+    __mT safe_sum = _mmT_max_pT(sum_val, _mmT_set1_pT(0.0));
+    Htau = _mmT_sqrt_pT(safe_sum);
 
     // tmp = (sigr*(v_pr2 - v_pr1) + sigt*(v_pt2 - v_pt1) + sigz*(v_pp2 - v_pp1))*0.5
     __mT tmp = _mmT_mul_pT(v_half,_mmT_add_pT(_mmT_add_pT(_mmT_mul_pT(sigr,_mmT_sub_pT(v_pr2,v_pr1)),_mmT_mul_pT(sigt,_mmT_sub_pT(v_pt2,v_pt1))),_mmT_mul_pT(sigp,_mmT_sub_pT(v_pp2,v_pp1))));
