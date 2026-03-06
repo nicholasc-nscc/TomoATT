@@ -788,6 +788,7 @@ inline __m512d load_mem_gen_to_mTd(CUSTOMREAL* a, int* ijk) {
     return _mm512_set_pd(a[ijk[7]], a[ijk[6]], a[ijk[5]], a[ijk[4]], 
                          a[ijk[3]], a[ijk[2]], a[ijk[1]], a[ijk[0]]);
 }
+#endif
 
 inline __mT load_mem_bool_to_mTd(bool* a, int* ijk){
 
