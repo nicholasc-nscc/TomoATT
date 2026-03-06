@@ -135,7 +135,6 @@ inline void vect_stencil_1st_pre_simd(
 #if USE_ARM_SVE
                                       svbool_t const& pg,
 #endif
-                                      __mT const& v_iip, __mT const& v_jjt, __mT const& v_kkr,
                                       __mT const& v_c__,
                                       __mT const& v_p__, __mT const& v_m__, __mT const& v__p_, __mT const& v__m_, __mT const& v___p, __mT const& v___m,
                                       __mT& v_pp1, __mT& v_pp2, __mT& v_pt1, __mT& v_pt2, __mT& v_pr1, __mT& v_pr2,
@@ -780,13 +779,10 @@ inline void calculate_boundary_nodes_tele_simd(
 #if USE_AVX512 || USE_AVX
 
 inline __mT load_mem_gen_to_mTd(CUSTOMREAL* a, int* ijk){
-
-        CUSTOMREAL dump_[NSIMD];
-        for (int i=0; i<NSIMD; i++){
-            dump_[i] = a[ijk[i]];
-        }
-
-        return  _mmT_loadu_pT(dump_);
+    // Load the integer indices into a vector
+    __mTi v_idx = _mmT_loadu_siT((__mTi*)ijk);
+    // Gather floats/doubles using the integer indices (scale = 8 bytes per double)
+    return _mmT_i32gather_pT(a, v_idx, 8);
 }
 
 inline __mT load_mem_bool_to_mTd(bool* a, int* ijk){
