@@ -286,6 +286,9 @@ void Iterator::assign_processes_for_levels(Grid& grid, InputParams& IP) {
             } // end loop jj
         } // end loop kk
 
+        // Sort memory addresses to maximize hardware prefetching
+        std::sort(asigned_nodes_on_this_level.begin(), asigned_nodes_on_this_level.end());
+
         // store the node ids of each level
         ijk_for_this_subproc.push_back(asigned_nodes_on_this_level);
     } // end loop level
