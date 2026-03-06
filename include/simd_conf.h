@@ -104,7 +104,6 @@ const int NSIMD = 4;
 const int ALIGN = 32;
 const int NSIMD = 4;
 #define __mT __m256d
-#define __mTi __m128i
 #define _mmT_set1_pT _mm256_set1_pd
 #define _mmT_loadu_pT _mm256_loadu_pd
 #define _mmT_mul_pT _mm256_mul_pd
@@ -115,8 +114,6 @@ const int NSIMD = 4;
 #define _mmT_sqrt_pT _mm256_sqrt_pd
 #define _mmT_store_pT _mm256_store_pd
 #define _mmT_fmadd_pT _mm256_fmadd_pd
-#define _mmT_loadu_siT _mm_loadu_si128
-#define _mmT_i32gather_pT _mm256_i32gather_pd
 
 #define _mm256_cmp_pT _mm256_cmp_pd
 
@@ -124,7 +121,6 @@ const int NSIMD = 4;
 const int ALIGN = 64;
 const int NSIMD = 8;
 #define __mT __m512d
-#define __mTi __m256i
 #define _mmT_set1_pT _mm512_set1_pd
 #define _mmT_loadu_pT _mm512_loadu_pd
 #define _mmT_mul_pT _mm512_mul_pd
@@ -136,8 +132,6 @@ const int NSIMD = 8;
 #define _mmT_sqrt_pT _mm512_sqrt_pd
 #define _mmT_store_pT _mm512_store_pd
 #define _mmT_fmadd_pT _mm512_fmadd_pd
-#define _mmT_loadu_siT _mm256_loadu_si256
-#define _mmT_i32gather_pT _mm512_i32gather_pd
 
 #define __mmaskT __mmask8
 #define _mm512_cmp_pT_mask _mm512_cmp_pd_mask
