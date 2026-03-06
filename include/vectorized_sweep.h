@@ -778,17 +778,15 @@ inline void calculate_boundary_nodes_tele_simd(
 
 #if USE_AVX512 || USE_AVX
 
-#if USE_AVX
-inline __m256d load_mem_gen_to_mTd(CUSTOMREAL* a, int* ijk) {
-    return _mm256_set_pd(a[ijk[3]], a[ijk[2]], a[ijk[1]], a[ijk[0]]);
+inline __mT load_mem_gen_to_mTd(CUSTOMREAL* a, int* ijk){
+
+        CUSTOMREAL dump_[NSIMD];
+        for (int i=0; i<NSIMD; i++){
+            dump_[i] = a[ijk[i]];
+        }
+
+        return  _mmT_loadu_pT(dump_);
 }
-#elif USE_AVX512
-inline __m512d load_mem_gen_to_mTd(CUSTOMREAL* a, int* ijk) {
-    // Takes arguments from element 7 down to 0
-    return _mm512_set_pd(a[ijk[7]], a[ijk[6]], a[ijk[5]], a[ijk[4]], 
-                         a[ijk[3]], a[ijk[2]], a[ijk[1]], a[ijk[0]]);
-}
-#endif
 
 inline __mT load_mem_bool_to_mTd(bool* a, int* ijk){
 
