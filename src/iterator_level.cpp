@@ -132,6 +132,12 @@ void Iterator_level_1st_order_blocked::do_sweep(int iswp, Grid& grid, InputParam
 #endif
     }
 
+    if (!is_initialized) {
+            initialize_blocks(grid);
+            is_initialized = true;
+    }
+    set_sweep_direction(iswp);
+    
 #if defined(USE_AVX512) || defined(USE_AVX)
     // Preload constants into SIMD registers (Outside all loops)
     __mT v_DP_inv      = _mmT_set1_pT(1.0/dp);
@@ -238,6 +244,10 @@ void Iterator_level_1st_order_blocked::do_sweep(int iswp, Grid& grid, InputParam
         // MPI synchronization boundary now happens less frequently, 
         // batching communication at the macro-level
         synchronize_all_sub(); 
+    }
+
+    if (subdom_main) {
+        calculate_boundary_nodes(grid);
     }
 #endif
 }

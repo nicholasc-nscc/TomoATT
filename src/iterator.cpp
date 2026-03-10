@@ -174,7 +174,6 @@ void Iterator::initialize_arrays(InputParams& IP, IO_utils& io, Grid& grid, Sour
 
     // assign processes for each sweeping level
     if (IP.get_sweep_type() == SWEEP_TYPE_LEVEL) assign_processes_for_levels(grid, IP);
-    if (IP.get_stencil_type() == BLOCKED) initialize_blocks(grid); 
 
 #ifdef USE_CUDA
     if(use_gpu){

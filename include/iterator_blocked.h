@@ -30,6 +30,7 @@
 class Iterator_level_1st_order_blocked : public Iterator_level {
 public:
     Iterator_level_1st_order_blocked(InputParams&, Grid&, Source&, IO_utils&, const std::string&, bool, bool, bool);
+    bool is_initialized = false;
     // THE MASTER SCHEDULE
     // Dimension 1: Sweep Direction (0 to 7)
     // Dimension 2: Macro-Level (Topological distance from the sweep origin)
