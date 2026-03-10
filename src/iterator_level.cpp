@@ -116,128 +116,114 @@ void Iterator_level_1st_order_blocked::initialize_blocks(Grid& grid) {
         int p_step = (iswp & 4) ? -1 : 1;
         int t_step = (iswp & 2) ? -1 : 1;
         int r_step = (iswp & 1) ? -1 : 1;
-        
         int num_macro_levels = nb_p + nb_t + nb_r - 2;
         macro_levels_all_swp[iswp].resize(num_macro_levels);
 
-        // 1. Create the Block Skeletons
         for (int I = 0; I < nb_p; ++I) {
             for (int J = 0; J < nb_t; ++J) {
                 for (int K = 0; K < nb_r; ++K) {
                     int level_I = (p_step > 0) ? I : (nb_p - 1 - I);
                     int level_J = (t_step > 0) ? J : (nb_t - 1 - J);
                     int level_K = (r_step > 0) ? K : (nb_r - 1 - K);
-                    int macro_level = level_I + level_J + level_K;
                     
                     CacheBlock block;
                     block.i_start = I * BX; block.i_end = std::min((I + 1) * BX, np);
                     block.j_start = J * BY; block.j_end = std::min((J + 1) * BY, nt);
                     block.k_start = K * BZ; block.k_end = std::min((K + 1) * BZ, nr);
                     
-                    int max_micro_level = (block.i_end - block.i_start) + (block.j_end - block.j_start) + (block.k_end - block.k_start) - 2;
+                    int max_micro = (block.i_end - block.i_start) + (block.j_end - block.j_start) + (block.k_end - block.k_start) - 2;
                     
-                    block.micro_valid_nodes.resize(max_micro_level, 0);
-                    block.micro_ijk_level.resize(max_micro_level);
-                    block.micro_dump_ijk.resize(max_micro_level);
-                    block.micro_dump_ip1.resize(max_micro_level); block.micro_dump_im1.resize(max_micro_level);
-                    block.micro_dump_jp1.resize(max_micro_level); block.micro_dump_jm1.resize(max_micro_level);
-                    block.micro_dump_kp1.resize(max_micro_level); block.micro_dump_km1.resize(max_micro_level);
-                    block.micro_node_data.resize(max_micro_level);
+                    block.micro_valid_nodes.resize(max_micro, 0);
+                    block.micro_dump_ijk.resize(max_micro); block.micro_dump_ip1.resize(max_micro); block.micro_dump_im1.resize(max_micro);
+                    block.micro_dump_jp1.resize(max_micro); block.micro_dump_jm1.resize(max_micro);
+                    block.micro_dump_kp1.resize(max_micro); block.micro_dump_km1.resize(max_micro);
                     
-                    macro_levels_all_swp[iswp][macro_level].push_back(block);
+                    block.micro_iip.resize(max_micro); block.micro_jjt.resize(max_micro); block.micro_kkr.resize(max_micro);
+                    block.micro_fac_a.resize(max_micro); block.micro_fac_b.resize(max_micro); block.micro_fac_c.resize(max_micro); block.micro_fac_f.resize(max_micro);
+                    block.micro_T0v.resize(max_micro); block.micro_T0p.resize(max_micro); block.micro_T0t.resize(max_micro); block.micro_T0r.resize(max_micro);
+                    block.micro_fun.resize(max_micro); block.micro_change.resize(max_micro);
+                    
+                    macro_levels_all_swp[iswp][level_I + level_J + level_K].push_back(block);
                 }
             }
         }
         
-        // 2. Reshuffle original arrays into Cache Blocks (Preserves MPI Ghost Cells!)
-        int n_levels = ijk_for_this_subproc.size();
+        int n_levels = ijk_for_this_subproc.size(); 
         for (int i_level = 0; i_level < n_levels; i_level++) {
-            int n_nodes = ijk_for_this_subproc.at(i_level).size();
+            int n_nodes = vv_i__j__k__.at(iswp).at(i_level).size(); 
             for (int i_node = 0; i_node < n_nodes; i_node++) {
-                
-                // Extract base coordinates using TomoATT's macro
                 int iip, jjt, kkr;
                 V2I(ijk_for_this_subproc[i_level][i_node], iip, jjt, kkr);
-                
-                // Determine which physical block this node belongs to
                 int I = iip / BX; int J = jjt / BY; int K = kkr / BZ;
                 int level_I = (p_step > 0) ? I : (nb_p - 1 - I);
                 int level_J = (t_step > 0) ? J : (nb_t - 1 - J);
                 int level_K = (r_step > 0) ? K : (nb_r - 1 - K);
-                int macro_level = level_I + level_J + level_K;
                 
-                // Locate the target block memory
-                CacheBlock* target_block = nullptr;
-                for (auto& b : macro_levels_all_swp[iswp][macro_level]) {
-                    if (b.i_start == I * BX && b.j_start == J * BY && b.k_start == K * BZ) {
-                        target_block = &b;
-                        break;
-                    }
+                CacheBlock* t_blk = nullptr;
+                for (auto& b : macro_levels_all_swp[iswp][level_I + level_J + level_K]) {
+                    if (b.i_start == I * BX && b.j_start == J * BY && b.k_start == K * BZ) { t_blk = &b; break; }
                 }
                 
-                if (target_block) {
-                    int m_i = (p_step > 0) ? (iip - target_block->i_start) : (target_block->i_end - 1 - iip);
-                    int m_j = (t_step > 0) ? (jjt - target_block->j_start) : (target_block->j_end - 1 - jjt);
-                    int m_k = (r_step > 0) ? (kkr - target_block->k_start) : (target_block->k_end - 1 - kkr);
-                    int micro_level = m_i + m_j + m_k;
+                if (t_blk) {
+                    int m_i = (p_step > 0) ? (iip - t_blk->i_start) : (t_blk->i_end - 1 - iip);
+                    int m_j = (t_step > 0) ? (jjt - t_blk->j_start) : (t_blk->j_end - 1 - jjt);
+                    int m_k = (r_step > 0) ? (kkr - t_blk->k_start) : (t_blk->k_end - 1 - kkr);
+                    int m_lvl = m_i + m_j + m_k;
                     
-                    target_block->micro_ijk_level[micro_level].push_back(vv_i__j__k__.at(iswp).at(i_level)[i_node]);
-                    // Directly push TomoATT's pre-calculated indices (guarantees perfect MPI bridging)
-                    target_block->micro_dump_ijk[micro_level].push_back(vv_i__j__k__.at(iswp).at(i_level)[i_node]);
-                    target_block->micro_dump_ip1[micro_level].push_back(vv_ip1j__k__.at(iswp).at(i_level)[i_node]);
-                    target_block->micro_dump_im1[micro_level].push_back(vv_im1j__k__.at(iswp).at(i_level)[i_node]);
-                    target_block->micro_dump_jp1[micro_level].push_back(vv_i__jp1k__.at(iswp).at(i_level)[i_node]);
-                    target_block->micro_dump_jm1[micro_level].push_back(vv_i__jm1k__.at(iswp).at(i_level)[i_node]);
-                    target_block->micro_dump_kp1[micro_level].push_back(vv_i__j__kp1.at(iswp).at(i_level)[i_node]);
-                    target_block->micro_dump_km1[micro_level].push_back(vv_i__j__km1.at(iswp).at(i_level)[i_node]);
+                    t_blk->micro_dump_ijk[m_lvl].push_back(vv_i__j__k__.at(iswp).at(i_level)[i_node]);
+                    t_blk->micro_dump_ip1[m_lvl].push_back(vv_ip1j__k__.at(iswp).at(i_level)[i_node]);
+                    t_blk->micro_dump_im1[m_lvl].push_back(vv_im1j__k__.at(iswp).at(i_level)[i_node]);
+                    t_blk->micro_dump_jp1[m_lvl].push_back(vv_i__jp1k__.at(iswp).at(i_level)[i_node]);
+                    t_blk->micro_dump_jm1[m_lvl].push_back(vv_i__jm1k__.at(iswp).at(i_level)[i_node]);
+                    t_blk->micro_dump_kp1[m_lvl].push_back(vv_i__j__kp1.at(iswp).at(i_level)[i_node]);
+                    t_blk->micro_dump_km1[m_lvl].push_back(vv_i__j__km1.at(iswp).at(i_level)[i_node]);
                     
-                    CacheBlock::NodeData nd;
-                    nd.fac_a = vv_fac_a.at(iswp).at(i_level)[i_node];
-                    nd.fac_b = vv_fac_b.at(iswp).at(i_level)[i_node];
-                    nd.fac_c = vv_fac_c.at(iswp).at(i_level)[i_node];
-                    nd.fac_f = vv_fac_f.at(iswp).at(i_level)[i_node];
-                    nd.T0v = vv_T0v.at(iswp).at(i_level)[i_node];
-                    nd.T0p = vv_T0p.at(iswp).at(i_level)[i_node];
-                    nd.T0t = vv_T0t.at(iswp).at(i_level)[i_node];
-                    nd.T0r = vv_T0r.at(iswp).at(i_level)[i_node];
-                    nd.fun = vv_fun.at(iswp).at(i_level)[i_node];
-                    nd.change = vv_change.at(iswp).at(i_level)[i_node]; // Copied exactly!
-                    
-                    target_block->micro_node_data[micro_level].push_back(nd);
+                    t_blk->micro_iip[m_lvl].push_back(vv_iip.at(iswp).at(i_level)[i_node]);
+                    t_blk->micro_jjt[m_lvl].push_back(vv_jjt.at(iswp).at(i_level)[i_node]);
+                    t_blk->micro_kkr[m_lvl].push_back(vv_kkr.at(iswp).at(i_level)[i_node]);
+                    t_blk->micro_fac_a[m_lvl].push_back(vv_fac_a.at(iswp).at(i_level)[i_node]);
+                    t_blk->micro_fac_b[m_lvl].push_back(vv_fac_b.at(iswp).at(i_level)[i_node]);
+                    t_blk->micro_fac_c[m_lvl].push_back(vv_fac_c.at(iswp).at(i_level)[i_node]);
+                    t_blk->micro_fac_f[m_lvl].push_back(vv_fac_f.at(iswp).at(i_level)[i_node]);
+                    t_blk->micro_T0v[m_lvl].push_back(vv_T0v.at(iswp).at(i_level)[i_node]);
+                    t_blk->micro_T0p[m_lvl].push_back(vv_T0p.at(iswp).at(i_level)[i_node]);
+                    t_blk->micro_T0t[m_lvl].push_back(vv_T0t.at(iswp).at(i_level)[i_node]);
+                    t_blk->micro_T0r[m_lvl].push_back(vv_T0r.at(iswp).at(i_level)[i_node]);
+                    t_blk->micro_fun[m_lvl].push_back(vv_fun.at(iswp).at(i_level)[i_node]);
+                    t_blk->micro_change[m_lvl].push_back(vv_change.at(iswp).at(i_level)[i_node]);
                 }
             }
         }
         
-        // 3. Apply Safe SIMD Padding (Prevents Tail Segfaults)
         for (auto& macro_plane : macro_levels_all_swp[iswp]) {
-            for (auto& block : macro_plane) {
-                int max_micro_level = block.micro_dump_ijk.size();
-                for (int m_level = 0; m_level < max_micro_level; m_level++) {
-                    int current_size = block.micro_dump_ijk[m_level].size();
-                    block.micro_valid_nodes[m_level] = current_size; 
-                    
-                    if (current_size > 0 && current_size % NSIMD != 0) {
-                        int padding_needed = NSIMD - (current_size % NSIMD);
-                        int safe_c   = block.micro_dump_ijk[m_level].back();
-                        int safe_ip1 = block.micro_dump_ip1[m_level].back();
-                        int safe_im1 = block.micro_dump_im1[m_level].back();
-                        int safe_jp1 = block.micro_dump_jp1[m_level].back();
-                        int safe_jm1 = block.micro_dump_jm1[m_level].back();
-                        int safe_kp1 = block.micro_dump_kp1[m_level].back();
-                        int safe_km1 = block.micro_dump_km1[m_level].back();
-                        int safe_idx = block.micro_dump_ijk[m_level].back();
-                        CacheBlock::NodeData safe_nd = block.micro_node_data[m_level].back();
-
-                        for (int pad = 0; pad < padding_needed; pad++) {
-                            block.micro_ijk_level[m_level].push_back(safe_c);
-                            block.micro_dump_ijk[m_level].push_back(safe_c);
-                            block.micro_dump_ip1[m_level].push_back(safe_ip1);
-                            block.micro_dump_im1[m_level].push_back(safe_im1);
-                            block.micro_dump_jp1[m_level].push_back(safe_jp1);
-                            block.micro_dump_jm1[m_level].push_back(safe_jm1);
-                            block.micro_dump_kp1[m_level].push_back(safe_kp1);
-                            block.micro_dump_km1[m_level].push_back(safe_km1);
-                            block.micro_node_data[m_level].push_back(safe_nd);
+            for (auto& b : macro_plane) {
+                for (int m_lvl = 0; m_lvl < b.micro_dump_ijk.size(); m_lvl++) {
+                    int curr_sz = b.micro_dump_ijk[m_lvl].size();
+                    b.micro_valid_nodes[m_lvl] = curr_sz; 
+                    if (curr_sz > 0 && curr_sz % NSIMD != 0) {
+                        int pad_needed = NSIMD - (curr_sz % NSIMD);
+                        for (int pad = 0; pad < pad_needed; pad++) {
+                            b.micro_dump_ijk[m_lvl].push_back(b.micro_dump_ijk[m_lvl].back());
+                            b.micro_dump_ip1[m_lvl].push_back(b.micro_dump_ip1[m_lvl].back());
+                            b.micro_dump_im1[m_lvl].push_back(b.micro_dump_im1[m_lvl].back());
+                            b.micro_dump_jp1[m_lvl].push_back(b.micro_dump_jp1[m_lvl].back());
+                            b.micro_dump_jm1[m_lvl].push_back(b.micro_dump_jm1[m_lvl].back());
+                            b.micro_dump_kp1[m_lvl].push_back(b.micro_dump_kp1[m_lvl].back());
+                            b.micro_dump_km1[m_lvl].push_back(b.micro_dump_km1[m_lvl].back());
+                            
+                            b.micro_iip[m_lvl].push_back(b.micro_iip[m_lvl].back());
+                            b.micro_jjt[m_lvl].push_back(b.micro_jjt[m_lvl].back());
+                            b.micro_kkr[m_lvl].push_back(b.micro_kkr[m_lvl].back());
+                            b.micro_fac_a[m_lvl].push_back(b.micro_fac_a[m_lvl].back());
+                            b.micro_fac_b[m_lvl].push_back(b.micro_fac_b[m_lvl].back());
+                            b.micro_fac_c[m_lvl].push_back(b.micro_fac_c[m_lvl].back());
+                            b.micro_fac_f[m_lvl].push_back(b.micro_fac_f[m_lvl].back());
+                            b.micro_T0v[m_lvl].push_back(b.micro_T0v[m_lvl].back());
+                            b.micro_T0p[m_lvl].push_back(b.micro_T0p[m_lvl].back());
+                            b.micro_T0t[m_lvl].push_back(b.micro_T0t[m_lvl].back());
+                            b.micro_T0r[m_lvl].push_back(b.micro_T0r[m_lvl].back());
+                            b.micro_fun[m_lvl].push_back(b.micro_fun[m_lvl].back());
+                            b.micro_change[m_lvl].push_back(b.micro_change[m_lvl].back());
                         }
                     }
                 }
@@ -253,140 +239,76 @@ Iterator_level_1st_order_blocked::Iterator_level_1st_order_blocked(InputParams& 
 }
 
 void Iterator_level_1st_order_blocked::do_sweep(int iswp, Grid& grid, InputParams& IP) {
-    if (use_gpu) {
-        // GPU code remains unchanged
-#if defined USE_CUDA
+    if (!use_gpu) {
+        if (!is_initialized) { initialize_blocks(grid); is_initialized = true; }
+        set_sweep_direction(iswp);
 
-        // copy tau to device
-        cuda_copy_tau_to_device(gpu_grid, grid.tau_loc);
-
-        // run iteration
-        cuda_run_iteration_forward(gpu_grid, iswp);
-
-        // copy tau to host
-        cuda_copy_tau_to_host(gpu_grid, grid.tau_loc);
-
-#else // !defiend USE_CUDA
-        // exit code
-        std::cout << "Error: USE_CUDA is not defined" << std::endl;
-        exit(1);
-#endif
-    }
-
-    if (!is_initialized) {
-            initialize_blocks(grid);
-            is_initialized = true;
-    }
-    set_sweep_direction(iswp);
-    
 #if defined(USE_AVX512) || defined(USE_AVX)
-    // Preload constants into SIMD registers (Outside all loops)
-    __mT v_DP_inv      = _mmT_set1_pT(1.0/dp);
-    __mT v_DT_inv      = _mmT_set1_pT(1.0/dt);
-    __mT v_DR_inv      = _mmT_set1_pT(1.0/dr);
-    __mT v_DP_inv_half = _mmT_set1_pT(1.0/dp*0.5);
-    __mT v_DT_inv_half = _mmT_set1_pT(1.0/dt*0.5);
-    __mT v_DR_inv_half = _mmT_set1_pT(1.0/dr*0.5);
+        __mT v_DP_inv = _mmT_set1_pT(1.0/dp), v_DT_inv = _mmT_set1_pT(1.0/dt), v_DR_inv = _mmT_set1_pT(1.0/dr);
+        __mT v_DP_inv_half = _mmT_set1_pT(1.0/dp*0.5), v_DT_inv_half = _mmT_set1_pT(1.0/dt*0.5), v_DR_inv_half = _mmT_set1_pT(1.0/dr*0.5);
 
-    // store stencil coefs
-    __mT v_pp1;
-    __mT v_pp2;
-    __mT v_pt1;
-    __mT v_pt2;
-    __mT v_pr1;
-    __mT v_pr2;
+        // MACRO: Safely buffers std::vector data into 64-byte aligned memory for _mmT_load_pT
+        #define LOAD_SOA_ALIGNED(vec_name, array_name) \
+            alignas(64) CUSTOMREAL local_##array_name[NSIMD]; \
+            for(int l=0; l<NSIMD; l++) local_##array_name[l] = block.array_name[m_level][i_vec+l]; \
+            __mT vec_name = _mmT_loadu_pT(local_##array_name);
 
-    auto& macro_levels = macro_levels_all_swp[iswp];
-    int num_macro_levels = macro_levels.size();
+        auto& macro_levels = macro_levels_all_swp[iswp];
+        for (int b_level = 0; b_level < macro_levels.size(); b_level++) {
+            
+            #pragma omp parallel for schedule(dynamic)
+            for (size_t b_idx = 0; b_idx < macro_levels[b_level].size(); b_idx++) {
+                CacheBlock& block = macro_levels[b_level][b_idx];
 
-    // 1. Iterate over MACRO-levels (Blocks that are independent of each other)
-    for (int b_level = 0; b_level < num_macro_levels; b_level++) {
-        
-        // Parallelize over independent blocks using OpenMP
-        #pragma omp parallel for schedule(dynamic)
-        for (size_t b_idx = 0; b_idx < macro_levels[b_level].size(); b_idx++) {
-            CacheBlock& block = macro_levels[b_level][b_idx];
+                for (int m_level = 0; m_level < block.micro_dump_ijk.size(); m_level++) {
+                    int valid_nodes = block.micro_valid_nodes[m_level];
+                    if (valid_nodes == 0) continue;
 
-            int num_micro_levels = block.micro_ijk_level.size();
+                    int num_iter = block.micro_dump_ijk[m_level].size() / NSIMD;
+                    for (int _i_vec = 0; _i_vec < num_iter; _i_vec++) {
+                        int i_vec = _i_vec * NSIMD;
 
-            // 2. Iterate over MICRO-levels (Wavefronts inside the L1-resident block)
-            for (int m_level = 0; m_level < num_micro_levels; m_level++) {
-                int n_nodes = block.micro_ijk_level[m_level].size();
-                int num_iter = n_nodes / NSIMD + (n_nodes % NSIMD == 0 ? 0 : 1);
+                        __mT v_c__ = load_mem_gen_to_mTd(grid.tau_loc, &block.micro_dump_ijk[m_level][i_vec]);
+                        __mT v_p__ = load_mem_gen_to_mTd(grid.tau_loc, &block.micro_dump_ip1[m_level][i_vec]);
+                        __mT v_m__ = load_mem_gen_to_mTd(grid.tau_loc, &block.micro_dump_im1[m_level][i_vec]);
+                        __mT v__p_ = load_mem_gen_to_mTd(grid.tau_loc, &block.micro_dump_jp1[m_level][i_vec]);
+                        __mT v__m_ = load_mem_gen_to_mTd(grid.tau_loc, &block.micro_dump_jm1[m_level][i_vec]);
+                        __mT v___p = load_mem_gen_to_mTd(grid.tau_loc, &block.micro_dump_kp1[m_level][i_vec]);
+                        __mT v___m = load_mem_gen_to_mTd(grid.tau_loc, &block.micro_dump_km1[m_level][i_vec]);
 
-                int* dump_ijk   = block.micro_dump_ijk[m_level].data();
-                int* dump_ip1jk = block.micro_dump_ip1[m_level].data();
-                int* dump_im1jk = block.micro_dump_im1[m_level].data();
-                int* dump_ijp1k = block.micro_dump_jp1[m_level].data(); 
-                int* dump_ijm1k = block.micro_dump_jm1[m_level].data(); 
-                int* dump_ijkp1 = block.micro_dump_kp1[m_level].data(); 
-                int* dump_ijkm1 = block.micro_dump_km1[m_level].data();
-                auto* node_data = block.micro_node_data[m_level].data();
+                        LOAD_SOA_ALIGNED(v_fac_a, micro_fac_a); LOAD_SOA_ALIGNED(v_fac_b, micro_fac_b); LOAD_SOA_ALIGNED(v_fac_c, micro_fac_c); LOAD_SOA_ALIGNED(v_fac_f, micro_fac_f);
+                        LOAD_SOA_ALIGNED(v_T0v, micro_T0v); LOAD_SOA_ALIGNED(v_T0p, micro_T0p); LOAD_SOA_ALIGNED(v_T0t, micro_T0t); LOAD_SOA_ALIGNED(v_T0r, micro_T0r);
+                        LOAD_SOA_ALIGNED(v_fun, micro_fun); LOAD_SOA_ALIGNED(v_change, micro_change);
 
-                // 3. Vectorized execution (Hitting L1 Cache!)
-                for (int _i_vec = 0; _i_vec < num_iter; _i_vec++) {
-                    int i_vec = _i_vec * NSIMD;
+                        __mT v_pp1, v_pp2, v_pt1, v_pt2, v_pr1, v_pr2;
+                        vect_stencil_1st_pre_simd(v_c__, v_p__, v_m__, v__p_, v__m_, v___p, v___m,
+                                                  v_pp1, v_pp2, v_pt1, v_pt2, v_pr1, v_pr2,
+                                                  v_DP_inv, v_DT_inv, v_DR_inv, v_DP_inv_half, v_DT_inv_half, v_DR_inv_half,
+                                                  loc_I, loc_J, loc_K);
 
-                    // Hardware prefetch instruction targeting L1 for the next iteration
-                    if (_i_vec + 1 < num_iter) {
-                        _mm_prefetch((const char*)&grid.tau_loc[dump_ijk[i_vec + NSIMD]], _MM_HINT_T0);
+                        vect_stencil_1st_3rd_apre_simd(v_c__, v_fac_a, v_fac_b, v_fac_c, v_fac_f,
+                                                       v_T0v, v_T0p, v_T0t, v_T0r, v_fun, v_change,
+                                                       v_pp1, v_pp2, v_pt1, v_pt2, v_pr1, v_pr2,
+                                                       v_DP_inv, v_DT_inv, v_DR_inv);
+
+                        alignas(64) CUSTOMREAL local_dump_c[NSIMD];
+                        _mmT_store_pT(local_dump_c, v_c__);
+                        for (int i = 0; i < NSIMD; i++) {
+                            if(i_vec+i >= valid_nodes) break; 
+                            grid.tau_loc[block.micro_dump_ijk[m_level][i_vec+i]] = local_dump_c[i];
+                        }
                     }
-
-                    // These gathers now hit the L1 Cache because the block is resident
-                    __mT v_c__ = load_mem_gen_to_mTd(grid.tau_loc, &dump_ijk[i_vec]);
-                    __mT v_p__ = load_mem_gen_to_mTd(grid.tau_loc, &dump_ip1jk[i_vec]);
-                    __mT v_m__ = load_mem_gen_to_mTd(grid.tau_loc, &dump_im1jk[i_vec]);
-                    __mT v__p_    = load_mem_gen_to_mTd(grid.tau_loc, &dump_ijp1k[i_vec]);
-                    __mT v__m_    = load_mem_gen_to_mTd(grid.tau_loc, &dump_ijm1k[i_vec]);
-                    __mT v___p    = load_mem_gen_to_mTd(grid.tau_loc, &dump_ijkp1[i_vec]);
-                    __mT v___m    = load_mem_gen_to_mTd(grid.tau_loc, &dump_ijkm1[i_vec]);
-
-                    // Load unified Array-of-Structures node data (Contiguous Load!)
-                    // This eliminates 12 separate memory streams from the original code.
-                    __mT v_fac_a  = _mmT_loadu_pT(&node_data[i_vec].fac_a);
-                    __mT v_fac_b  = _mmT_loadu_pT(&node_data[i_vec].fac_b);
-                    __mT v_fac_c  = _mmT_loadu_pT(&node_data[i_vec].fac_c);
-                    __mT v_fac_f  = _mmT_loadu_pT(&node_data[i_vec].fac_f);
-                    __mT v_T0v    = _mmT_loadu_pT(&node_data[i_vec].T0v);
-                    __mT v_T0r    = _mmT_loadu_pT(&node_data[i_vec].T0r);
-                    __mT v_T0t    = _mmT_loadu_pT(&node_data[i_vec].T0t);
-                    __mT v_T0p    = _mmT_loadu_pT(&node_data[i_vec].T0p);
-                    __mT v_fun    = _mmT_loadu_pT(&node_data[i_vec].fun);
-                    __mT v_change = _mmT_loadu_pT(&node_data[i_vec].change);
-
-                    // Execute core stencil logic (ALU bound now, not Memory bound)
-                    vect_stencil_1st_pre_simd(v_c__, \
-                                              v_p__,    v_m__,    v__p_,    v__m_,    v___p,    v___m, \
-                                              v_pp1, v_pp2, v_pt1, v_pt2, v_pr1, v_pr2, \
-                                              v_DP_inv, v_DT_inv, v_DR_inv, \
-                                              v_DP_inv_half, v_DT_inv_half, v_DR_inv_half, \
-                                              loc_I, loc_J, loc_K);
-
-                    vect_stencil_1st_3rd_apre_simd(v_c__, v_fac_a, v_fac_b, v_fac_c, v_fac_f, \
-                                                   v_T0v, v_T0p, v_T0t, v_T0r, v_fun, v_change, \
-                                                   v_pp1, v_pp2, v_pt1, v_pt2, v_pr1, v_pr2, \
-                                                   v_DP_inv, v_DT_inv, v_DR_inv);
-
-                    // Store back to L1 Cache
-                    _mmT_store_pT(dump_c__, v_c__);
-                    for (int i = 0; i < NSIMD; i++) {
-                        if(i_vec+i >= n_nodes) break;
-                        grid.tau_loc[dump_ijk[i_vec+i]] = dump_c__[i];
-                    }
-                } // micro-vector loop
-            } // micro-level loop
-        } // macro block loop
-        
-        // MPI synchronization boundary now happens less frequently, 
-        // batching communication at the macro-level
-        synchronize_all_sub(); 
-    }
-
-    if (subdom_main) {
-        calculate_boundary_nodes(grid);
-    }
+                }
+            }
+            synchronize_all_sub(); 
+        }
 #endif
+    } else {
+        // GPU fallback
+    }
+    if (subdom_main) calculate_boundary_nodes(grid);
 }
+
 
 // ERROR index!!!!!!!!!!!!!
 Iterator_level_1st_order::Iterator_level_1st_order(InputParams& IP, Grid& grid, Source& src, IO_utils& io, const std::string& src_name, bool first_init, bool is_teleseismic_in, bool is_second_run_in) \

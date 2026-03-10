@@ -63,26 +63,17 @@ private:
 };
 
 struct CacheBlock {
-    int i_start, i_end;
-    int j_start, j_end;
-    int k_start, k_end;
-    
-    // Micro-wavefronts specifically for this block
-    std::vector<std::vector<int>> micro_ijk_level; 
-    std::vector<int> micro_valid_nodes;
+    int i_start, i_end, j_start, j_end, k_start, k_end;
+    std::vector<int> micro_valid_nodes; 
 
-    // Flattened, block-local precomputed arrays to reduce memory streams
-    // AoS (Array of Structures) to maximize cache line utilization
-    struct NodeData {
-        CUSTOMREAL fac_a, fac_b, fac_c, fac_f;
-        CUSTOMREAL T0v, T0p, T0t, T0r;
-        CUSTOMREAL fun, change;
-    };
-    std::vector<std::vector<NodeData>> micro_node_data;
-    std::vector<std::vector<int>> micro_dump_ijk;
-    std::vector<std::vector<int>> micro_dump_ip1, micro_dump_im1;
-    std::vector<std::vector<int>> micro_dump_jp1, micro_dump_jm1;
-    std::vector<std::vector<int>> micro_dump_kp1, micro_dump_km1;
+    // Indices (Struct of Arrays)
+    std::vector<std::vector<int>> micro_dump_ijk, micro_dump_ip1, micro_dump_im1;
+    std::vector<std::vector<int>> micro_dump_jp1, micro_dump_jm1, micro_dump_kp1, micro_dump_km1;
+
+    // Physical Properties (Struct of Arrays)
+    std::vector<std::vector<CUSTOMREAL>> micro_fac_a, micro_fac_b, micro_fac_c, micro_fac_f;
+    std::vector<std::vector<CUSTOMREAL>> micro_T0v, micro_T0p, micro_T0t, micro_T0r;
+    std::vector<std::vector<CUSTOMREAL>> micro_fun, micro_change;
 };
 
 class Iterator_level_1st_order_blocked : public Iterator_level {
