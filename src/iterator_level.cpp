@@ -31,9 +31,6 @@ void Iterator_level_1st_order_opt::build_aosoa(Grid& grid) {
             int* dump_ijkp1 = vv_i__j__kp1.at(iswp).at(i_level);
             int* dump_ijkm1 = vv_i__j__km1.at(iswp).at(i_level);
 
-            CUSTOMREAL* v_iip   = vv_iip.at(iswp).at(i_level);
-            CUSTOMREAL* v_jjt   = vv_jjt.at(iswp).at(i_level);
-            CUSTOMREAL* v_kkr   = vv_kkr.at(iswp).at(i_level);
             CUSTOMREAL* v_fac_a = vv_fac_a.at(iswp).at(i_level);
             CUSTOMREAL* v_fac_b = vv_fac_b.at(iswp).at(i_level);
             CUSTOMREAL* v_fac_c = vv_fac_c.at(iswp).at(i_level);
@@ -65,9 +62,6 @@ void Iterator_level_1st_order_opt::build_aosoa(Grid& grid) {
                         block.idx_km1[l] = dump_ijkm1[idx];
 
                         // Map Physics and Geometry Vectors contiguously
-                        block.i[l] = v_iip[idx];
-                        block.j[l] = v_jjt[idx];
-                        block.k[l] = v_kkr[idx];
                         block.fac_a[l] = v_fac_a[idx];
                         block.fac_b[l] = v_fac_b[idx];
                         block.fac_c[l] = v_fac_c[idx];
@@ -85,7 +79,6 @@ void Iterator_level_1st_order_opt::build_aosoa(Grid& grid) {
                         block.idx_jp1[l] = 0; block.idx_jm1[l] = 0;
                         block.idx_kp1[l] = 0; block.idx_km1[l] = 0;
                         
-                        block.i[l] = 0.0; block.j[l] = 0.0; block.k[l] = 0.0;
                         block.fac_a[l] = 0.0; block.fac_b[l] = 0.0; block.fac_c[l] = 0.0; block.fac_f[l] = 0.0;
                         block.T0v[l] = 0.0; block.T0p[l] = 0.0; block.T0t[l] = 0.0; block.T0r[l] = 0.0;
                         block.fun[l] = 0.0; block.change[l] = 0.0;
@@ -143,9 +136,6 @@ void Iterator_level_1st_order_opt::do_sweep(int iswp, Grid& grid, InputParams& I
                 // CONTIGUOUS LOADS for Parameters (Solutions 2 & 3 Combined)
                 // Instead of 12 distinct scatter/gather operations across global arrays, 
                 // we load directly from the locally-mapped AoSoA block into SIMD registers.
-                __mT v_iip   = _mmT_loadu_pT(block.i);
-                __mT v_jjt   = _mmT_loadu_pT(block.j);
-                __mT v_kkr   = _mmT_loadu_pT(block.k);
                 __mT v_fac_a = _mmT_loadu_pT(block.fac_a);
                 __mT v_fac_b = _mmT_loadu_pT(block.fac_b);
                 __mT v_fac_c = _mmT_loadu_pT(block.fac_c);
@@ -167,8 +157,7 @@ void Iterator_level_1st_order_opt::do_sweep(int iswp, Grid& grid, InputParams& I
                 __mT v_pp1, v_pp2, v_pt1, v_pt2, v_pr1, v_pr2;
 
                 // Fire standard kernel
-                vect_stencil_1st_pre_simd(v_iip, v_jjt, v_kkr,
-                                          v_c__,
+                vect_stencil_1st_pre_simd(v_c__,
                                           v_p__, v_m__, v__p_, v__m_, v___p, v___m,
                                           v_pp1, v_pp2, v_pt1, v_pt2, v_pr1, v_pr2,
                                           v_DP_inv, v_DT_inv, v_DR_inv,

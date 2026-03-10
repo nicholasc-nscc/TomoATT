@@ -29,9 +29,6 @@ struct SIMDBlock {
     int idx_jp1[NSIMD], idx_jm1[NSIMD];
     int idx_kp1[NSIMD], idx_km1[NSIMD];
 
-    // Coordinates directly mapped to SIMD vectors
-    CUSTOMREAL i[NSIMD], j[NSIMD], k[NSIMD];
-    
     // Physical Parameters (Loaded contiguously in L1 Cache)
     CUSTOMREAL fac_a[NSIMD], fac_b[NSIMD], fac_c[NSIMD], fac_f[NSIMD];
     CUSTOMREAL T0v[NSIMD], T0p[NSIMD], T0t[NSIMD], T0r[NSIMD];
