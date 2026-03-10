@@ -138,7 +138,6 @@ void Iterator_level_1st_order_blocked::initialize_blocks(Grid& grid) {
                     block.micro_dump_jp1.resize(max_micro); block.micro_dump_jm1.resize(max_micro);
                     block.micro_dump_kp1.resize(max_micro); block.micro_dump_km1.resize(max_micro);
                     
-                    block.micro_iip.resize(max_micro); block.micro_jjt.resize(max_micro); block.micro_kkr.resize(max_micro);
                     block.micro_fac_a.resize(max_micro); block.micro_fac_b.resize(max_micro); block.micro_fac_c.resize(max_micro); block.micro_fac_f.resize(max_micro);
                     block.micro_T0v.resize(max_micro); block.micro_T0p.resize(max_micro); block.micro_T0t.resize(max_micro); block.micro_T0r.resize(max_micro);
                     block.micro_fun.resize(max_micro); block.micro_change.resize(max_micro);
@@ -178,9 +177,6 @@ void Iterator_level_1st_order_blocked::initialize_blocks(Grid& grid) {
                     t_blk->micro_dump_kp1[m_lvl].push_back(vv_i__j__kp1.at(iswp).at(i_level)[i_node]);
                     t_blk->micro_dump_km1[m_lvl].push_back(vv_i__j__km1.at(iswp).at(i_level)[i_node]);
                     
-                    t_blk->micro_iip[m_lvl].push_back(vv_iip.at(iswp).at(i_level)[i_node]);
-                    t_blk->micro_jjt[m_lvl].push_back(vv_jjt.at(iswp).at(i_level)[i_node]);
-                    t_blk->micro_kkr[m_lvl].push_back(vv_kkr.at(iswp).at(i_level)[i_node]);
                     t_blk->micro_fac_a[m_lvl].push_back(vv_fac_a.at(iswp).at(i_level)[i_node]);
                     t_blk->micro_fac_b[m_lvl].push_back(vv_fac_b.at(iswp).at(i_level)[i_node]);
                     t_blk->micro_fac_c[m_lvl].push_back(vv_fac_c.at(iswp).at(i_level)[i_node]);
