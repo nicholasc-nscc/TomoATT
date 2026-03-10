@@ -36,7 +36,6 @@ void select_iterator(InputParams& IP, Grid& grid, Source& src, IO_utils& io, con
                     It = std::make_unique<Iterator_level_1st_order_upwind>(IP, grid, src, io, src_name, first_init, is_teleseismic, is_second_run);
                 } else if (IP.get_stencil_type() == BLOCKED) {
                     It = std::make_unique<Iterator_level_1st_order_blocked>(IP, grid, src, io, src_name, first_init, is_teleseismic, is_second_run);
-                }
                 } else {
                     It = std::make_unique<Iterator_level_1st_order>(IP, grid, src, io, src_name, first_init, is_teleseismic, is_second_run);
                 }

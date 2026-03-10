@@ -137,12 +137,17 @@ void Iterator_level_1st_order_blocked::do_sweep(int iswp, Grid& grid, InputParam
     __mT v_DP_inv      = _mmT_set1_pT(1.0/dp);
     __mT v_DT_inv      = _mmT_set1_pT(1.0/dt);
     __mT v_DR_inv      = _mmT_set1_pT(1.0/dr);
-    __mT v_DP_inv      = _mmT_set1_pT(1.0/dp);
-    __mT v_DT_inv      = _mmT_set1_pT(1.0/dt);
-    __mT v_DR_inv      = _mmT_set1_pT(1.0/dr);
     __mT v_DP_inv_half = _mmT_set1_pT(1.0/dp*0.5);
     __mT v_DT_inv_half = _mmT_set1_pT(1.0/dt*0.5);
     __mT v_DR_inv_half = _mmT_set1_pT(1.0/dr*0.5);
+
+    // store stencil coefs
+    __mT v_pp1;
+    __mT v_pp2;
+    __mT v_pt1;
+    __mT v_pt2;
+    __mT v_pr1;
+    __mT v_pr2;
 
     auto& macro_levels = macro_levels_all_swp[iswp];
     int num_macro_levels = macro_levels.size();
@@ -195,16 +200,16 @@ void Iterator_level_1st_order_blocked::do_sweep(int iswp, Grid& grid, InputParam
 
                         // Load unified Array-of-Structures node data (Contiguous Load!)
                         // This eliminates 12 separate memory streams from the original code.
-                        __mT v_fac_a  = _mmT_load_pT(&node_data[i_vec].fac_a);
-                        __mT v_fac_b  = _mmT_load_pT(&node_data[i_vec].fac_b);
-                        __mT v_fac_c  = _mmT_load_pT(&node_data[i_vec].fac_c);
-                        __mT v_fac_f  = _mmT_load_pT(&node_data[i_vec].fac_f);
-                        __mT v_T0v    = _mmT_load_pT(&node_data[i_vec].T0v);
-                        __mT v_T0r    = _mmT_load_pT(&node_data[i_vec].T0r);
-                        __mT v_T0t    = _mmT_load_pT(&node_data[i_vec].T0t);
-                        __mT v_T0p    = _mmT_load_pT(&node_data[i_vec].T0p);
-                        __mT v_fun    = _mmT_load_pT(&node_data[i_vec].fun);
-                        __mT v_change = _mmT_load_pT(&node_data[i_vec].is_changed);
+                        __mT v_fac_a  = _mmT_loadu_pT(&node_data[i_vec].fac_a);
+                        __mT v_fac_b  = _mmT_loadu_pT(&node_data[i_vec].fac_b);
+                        __mT v_fac_c  = _mmT_loadu_pT(&node_data[i_vec].fac_c);
+                        __mT v_fac_f  = _mmT_loadu_pT(&node_data[i_vec].fac_f);
+                        __mT v_T0v    = _mmT_loadu_pT(&node_data[i_vec].T0v);
+                        __mT v_T0r    = _mmT_loadu_pT(&node_data[i_vec].T0r);
+                        __mT v_T0t    = _mmT_loadu_pT(&node_data[i_vec].T0t);
+                        __mT v_T0p    = _mmT_loadu_pT(&node_data[i_vec].T0p);
+                        __mT v_fun    = _mmT_loadu_pT(&node_data[i_vec].fun);
+                        __mT v_change = _mmT_loadu_pT(&node_data[i_vec].change);
 
                         // Execute core stencil logic (ALU bound now, not Memory bound)
                         vect_stencil_1st_pre_simd(v_c__, \

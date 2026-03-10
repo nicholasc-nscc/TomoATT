@@ -2,7 +2,6 @@
 #define ITERATOR_LEVEL_H
 
 #include "iterator.h"
-#include "iterator_blocked.h"
 
 
 class Iterator_level : public Iterator {
