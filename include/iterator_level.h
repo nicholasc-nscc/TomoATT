@@ -69,7 +69,8 @@ struct CacheBlock {
     
     // Micro-wavefronts specifically for this block
     std::vector<std::vector<int>> micro_ijk_level; 
-    
+    std::vector<int> micro_valid_nodes;
+
     // Flattened, block-local precomputed arrays to reduce memory streams
     // AoS (Array of Structures) to maximize cache line utilization
     struct NodeData {

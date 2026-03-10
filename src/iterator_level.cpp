@@ -150,9 +150,9 @@ void Iterator_level_1st_order_blocked::initialize_blocks(Grid& grid) {
         }
         
         // 2. Reshuffle original arrays into Cache Blocks (Preserves MPI Ghost Cells!)
-        int n_levels = ijk_for_this_subproc.size(); 
+        int n_levels = ijk_for_this_subproc.size();
         for (int i_level = 0; i_level < n_levels; i_level++) {
-            int n_nodes = vv_i__j__k__.at(iswp).at(i_level).size(); 
+            int n_nodes = ijk_for_this_subproc.at(i_level).size();
             for (int i_node = 0; i_node < n_nodes; i_node++) {
                 
                 // Extract base coordinates using TomoATT's macro
