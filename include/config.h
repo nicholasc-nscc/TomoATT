@@ -144,6 +144,7 @@ inline      bool hybrid_stencil_order = false; // if true, code at first run 1st
 // STENCIL TYPE
 inline const int NON_UPWIND = 0;
 inline const int UPWIND     = 1;
+inline const int BLOCKED    = 2;
 
 // convert depth <-> radius
 inline CUSTOMREAL depth2radius(CUSTOMREAL depth) {

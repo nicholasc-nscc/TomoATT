@@ -1461,7 +1461,7 @@ void InputParams::write_params_to_file() {
     fout << "   convergence_tolerance: " << conv_tol << " # threshold value for checking the convergence for each forward/adjoint run"<< std::endl;
     fout << "   max_iterations: " << max_iter << " # number of maximum iteration for each forward/adjoint run" << std::endl;
     fout << "   stencil_order: " << stencil_order << " # order of stencil, 1 or 3" << std::endl;
-    fout << "   stencil_type: " << stencil_type << " # 0: , 1: first-order upwind scheme (only sweep_type 0 is supported) " << std::endl;
+    fout << "   stencil_type: " << stencil_type << " # 0: , 1: first-order upwind scheme (only sweep_type 0 is supported), 2: blocked " << std::endl;
     fout << "   sweep_type: " << sweep_type << " # 0: legacy, 1: cuthill-mckee with shm parallelization" << std::endl;
     fout << std::endl;
     //fout << std::endl;

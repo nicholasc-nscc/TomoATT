@@ -1,5 +1,9 @@
 #include "iterator.h"
 
+#if defined USE_SIMD
+#include "iterator_blocked.h"
+#endif
+
 // test no valence anymore
 
 Iterator::Iterator(InputParams& IP, Grid& grid, Source& src, IO_utils& io, const std::string& src_name, \
@@ -170,6 +174,7 @@ void Iterator::initialize_arrays(InputParams& IP, IO_utils& io, Grid& grid, Sour
 
     // assign processes for each sweeping level
     if (IP.get_sweep_type() == SWEEP_TYPE_LEVEL) assign_processes_for_levels(grid, IP);
+    if (IP.get_stencil_type() == BLOCKED) initialize_blocks(grid); 
 
 #ifdef USE_CUDA
     if(use_gpu){
@@ -302,6 +307,10 @@ void Iterator::assign_processes_for_levels(Grid& grid, InputParams& IP) {
         return;
     }
 
+    // Blocked sweep, use separate way to pre-load the data.
+    if (IP.get_stencil_type() == BLOCKED) {
+        return;
+    }
 
 #if defined USE_SIMD || defined USE_CUDA
 
@@ -554,6 +563,121 @@ void Iterator::preload_indices_1d(std::vector<std::vector<T*>> &vvv, \
     }
 }
 
+void Iterator_level_1st_order_blocked::initialize_blocks(Grid& grid) {
+    // 1. Define L1-Cache friendly block dimensions
+    // 16x16x16 doubles = 32 KB (Fits perfectly in modern L1 Data Caches)
+    const int BX = 16;
+    const int BY = 16;
+    const int BZ = 16;
+
+    // Calculate number of blocks in each dimension
+    int nb_p = (np + BX - 1) / BX;
+    int nb_t = (nt + BY - 1) / BY;
+    int nb_r = (nr + BZ - 1) / BZ;
+
+    // We need a schedule for all 8 FSM sweep directions
+    macro_levels_all_swp.resize(8);
+
+    for (int iswp = 0; iswp < 8; ++iswp) {
+        // Determine the sweep direction signs (bitwise logic based on FSM standards)
+        // positive step = 1, negative step = -1
+        int p_step = (iswp & 4) ? -1 : 1;
+        int t_step = (iswp & 2) ? -1 : 1;
+        int r_step = (iswp & 1) ? -1 : 1;
+
+        // The maximum number of macro-levels is the sum of block dimensions
+        int num_macro_levels = nb_p + nb_t + nb_r - 2;
+        macro_levels_all_swp[iswp].resize(num_macro_levels);
+
+        // 2. Iterate over all spatial blocks
+        for (int I = 0; I < nb_p; ++I) {
+            for (int J = 0; J < nb_t; ++J) {
+                for (int K = 0; K < nb_r; ++K) {
+                    
+                    // Macro-level depends on the sweep direction
+                    int level_I = (p_step > 0) ? I : (nb_p - 1 - I);
+                    int level_J = (t_step > 0) ? J : (nb_t - 1 - J);
+                    int level_K = (r_step > 0) ? K : (nb_r - 1 - K);
+                    int macro_level = level_I + level_J + level_K;
+
+                    CacheBlock block;
+                    
+                    // Physical node boundaries of this specific block
+                    block.i_start = I * BX;
+                    block.i_end   = std::min((I + 1) * BX, np);
+                    block.j_start = J * BY;
+                    block.j_end   = std::min((J + 1) * BY, nt);
+                    block.k_start = K * BZ;
+                    block.k_end   = std::min((K + 1) * BZ, nr);
+
+                    // Maximum micro-levels inside this specific block
+                    int max_micro_level = (block.i_end - block.i_start) +
+                                          (block.j_end - block.j_start) +
+                                          (block.k_end - block.k_start) - 2;
+
+                    // Allocate micro-level arrays
+                    block.micro_ijk_level.resize(max_micro_level);
+                    block.micro_dump_ijk.resize(max_micro_level);
+                    block.micro_dump_ip1.resize(max_micro_level);
+                    block.micro_dump_im1.resize(max_micro_level);
+                    block.micro_dump_jp1.resize(max_micro_level);
+                    block.micro_dump_jm1.resize(max_micro_level);
+                    block.micro_dump_kp1.resize(max_micro_level);
+                    block.micro_dump_km1.resize(max_micro_level);
+                    block.micro_node_data.resize(max_micro_level);
+
+                    // 3. Generate SIMD wavefronts (Micro-levels) inside the block
+                    for (int i = block.i_start; i < block.i_end; ++i) {
+                        for (int j = block.j_start; j < block.j_end; ++j) {
+                            for (int k = block.k_start; k < block.k_end; ++k) {
+                                
+                                // Local topological distance based on sweep direction
+                                int m_i = (p_step > 0) ? (i - block.i_start) : (block.i_end - 1 - i);
+                                int m_j = (t_step > 0) ? (j - block.j_start) : (block.j_end - 1 - j);
+                                int m_k = (r_step > 0) ? (k - block.k_start) : (block.k_end - 1 - k);
+                                int micro_level = m_i + m_j + m_k;
+
+                                int v_idx = I2V(i, j, k);
+                                block.micro_ijk_level[micro_level].push_back(v_idx);
+
+                                // Pre-calculate flattened 1D memory indices for gather operations
+                                // This entirely replaces the need to load v_iip, v_jjt, v_kkr
+                                block.micro_dump_ijk[micro_level].push_back(v_idx);
+                                block.micro_dump_ip1[micro_level].push_back(I2V(std::min(i + 1, np - 1), j, k));
+                                block.micro_dump_im1[micro_level].push_back(I2V(std::max(i - 1, 0), j, k));
+                                block.micro_dump_jp1[micro_level].push_back(I2V(i, std::min(j + 1, nt - 1), k));
+                                block.micro_dump_jm1[micro_level].push_back(I2V(i, std::max(j - 1, 0), k));
+                                block.micro_dump_kp1[micro_level].push_back(I2V(i, j, std::min(k + 1, nr - 1)));
+                                block.micro_dump_km1[micro_level].push_back(I2V(i, j, std::max(k - 1, 0)));
+
+                                // 4. Pack Array of Structures (AoS)
+                                // Merge 12 separate arrays from TomoATT into 1 contiguous memory stream
+                                CacheBlock::NodeData nd;
+                                
+                                // Assuming grid.precalc_data contains the physical properties
+                                nd.fac_a = grid.fac_a_loc[v_idx];
+                                nd.fac_b = grid.fac_b_loc[v_idx];
+                                nd.fac_c = grid.fac_c_loc[v_idx];
+                                nd.fac_f = grid.fac_f_loc[v_idx];
+                                nd.T0v   = grid.T0v_loc[v_idx];
+                                nd.T0p   = grid.T0p_loc[v_idx];
+                                nd.T0t   = grid.T0t_loc[v_idx];
+                                nd.T0r   = grid.T0r_loc[v_idx];
+                                nd.fun   = grid.fun_loc[v_idx];
+                                nd.change= grid.is_changed[v_idx] ? 1.0 : 0.0;
+
+                                block.micro_node_data[micro_level].push_back(nd);
+                            }
+                        }
+                    }
+
+                    // Append the fully constructed block to the global schedule
+                    macro_levels_all_swp[iswp][macro_level].push_back(block);
+                }
+            }
+        }
+    }
+}
 
 #endif // USE_SIMD || USE_CUDA
 

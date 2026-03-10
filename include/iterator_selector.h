@@ -5,6 +5,7 @@
 #include "iterator.h"
 #include "iterator_legacy.h"
 #include "iterator_level.h"
+#include "iterator_blocked.h"
 
 
 void select_iterator(InputParams& IP, Grid& grid, Source& src, IO_utils& io, const std::string& src_name, \
@@ -33,6 +34,9 @@ void select_iterator(InputParams& IP, Grid& grid, Source& src, IO_utils& io, con
                 if (IP.get_stencil_type() == UPWIND){
                     // std::cout << "WARNING: Upwind Stencil type not supported, using non upwind scheme (LF)" << std::endl;
                     It = std::make_unique<Iterator_level_1st_order_upwind>(IP, grid, src, io, src_name, first_init, is_teleseismic, is_second_run);
+                } else if (IP.get_stencil_type() == BLOCKED) {
+                    It = std::make_unique<Iterator_level_1st_order_blocked>(IP, grid, src, io, src_name, first_init, is_teleseismic, is_second_run);
+                }
                 } else {
                     It = std::make_unique<Iterator_level_1st_order>(IP, grid, src, io, src_name, first_init, is_teleseismic, is_second_run);
                 }
