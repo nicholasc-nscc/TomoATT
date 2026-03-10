@@ -218,18 +218,25 @@ void Iterator_level_1st_order_blocked::initialize_blocks(Grid& grid) {
                     
                     if (current_size > 0 && current_size % NSIMD != 0) {
                         int padding_needed = NSIMD - (current_size % NSIMD);
+                        int safe_c   = block.micro_dump_ijk[m_level].back();
+                        int safe_ip1 = block.micro_dump_ip1[m_level].back();
+                        int safe_im1 = block.micro_dump_im1[m_level].back();
+                        int safe_jp1 = block.micro_dump_jp1[m_level].back();
+                        int safe_jm1 = block.micro_dump_jm1[m_level].back();
+                        int safe_kp1 = block.micro_dump_kp1[m_level].back();
+                        int safe_km1 = block.micro_dump_km1[m_level].back();
                         int safe_idx = block.micro_dump_ijk[m_level].back();
                         CacheBlock::NodeData safe_nd = block.micro_node_data[m_level].back();
 
                         for (int pad = 0; pad < padding_needed; pad++) {
-                            block.micro_ijk_level[m_level].push_back(safe_idx);
-                            block.micro_dump_ijk[m_level].push_back(safe_idx);
-                            block.micro_dump_ip1[m_level].push_back(safe_idx);
-                            block.micro_dump_im1[m_level].push_back(safe_idx);
-                            block.micro_dump_jp1[m_level].push_back(safe_idx);
-                            block.micro_dump_jm1[m_level].push_back(safe_idx);
-                            block.micro_dump_kp1[m_level].push_back(safe_idx);
-                            block.micro_dump_km1[m_level].push_back(safe_idx);
+                            block.micro_ijk_level[m_level].push_back(safe_c);
+                            block.micro_dump_ijk[m_level].push_back(safe_c);
+                            block.micro_dump_ip1[m_level].push_back(safe_ip1);
+                            block.micro_dump_im1[m_level].push_back(safe_im1);
+                            block.micro_dump_jp1[m_level].push_back(safe_jp1);
+                            block.micro_dump_jm1[m_level].push_back(safe_jm1);
+                            block.micro_dump_kp1[m_level].push_back(safe_kp1);
+                            block.micro_dump_km1[m_level].push_back(safe_km1);
                             block.micro_node_data[m_level].push_back(safe_nd);
                         }
                     }
