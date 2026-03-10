@@ -5,7 +5,6 @@
 #include "iterator.h"
 #include "iterator_legacy.h"
 #include "iterator_level.h"
-#include "iterator_blocked.h"
 
 
 void select_iterator(InputParams& IP, Grid& grid, Source& src, IO_utils& io, const std::string& src_name, \
