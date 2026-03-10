@@ -22,27 +22,7 @@
 #include "simd_conf.h"
 //#endif
 
-struct CacheBlock {
-    int i_start, i_end;
-    int j_start, j_end;
-    int k_start, k_end;
-    
-    // Micro-wavefronts specifically for this block
-    std::vector<std::vector<int>> micro_ijk_level; 
-    
-    // Flattened, block-local precomputed arrays to reduce memory streams
-    // AoS (Array of Structures) to maximize cache line utilization
-    struct NodeData {
-        CUSTOMREAL fac_a, fac_b, fac_c, fac_f;
-        CUSTOMREAL T0v, T0p, T0t, T0r;
-        CUSTOMREAL fun, change;
-    };
-    std::vector<std::vector<NodeData>> micro_node_data;
-    std::vector<std::vector<int>> micro_dump_ijk;
-    std::vector<std::vector<int>> micro_dump_ip1, micro_dump_im1;
-    std::vector<std::vector<int>> micro_dump_jp1, micro_dump_jm1;
-    std::vector<std::vector<int>> micro_dump_kp1, micro_dump_km1;
-};
+
 
 class Iterator {
 public:
@@ -53,7 +33,6 @@ public:
     void run_iteration_adjoint(InputParams&, Grid&, IO_utils&, int);        // run adjoint iteration till convergence
 
     void initialize_arrays(InputParams&, IO_utils&, Grid&, Source&, const std::string&); // initialize factors etc.
-    void initialize_blocks(Grid&); 
 
 protected:
     void assign_processes_for_levels(Grid&, InputParams&); // assign intra-node processes for each sweeping level
@@ -134,8 +113,6 @@ protected:
     // flag for deallocation
     bool simd_allocated     = false;
     bool simd_allocated_3rd = false;
-
-    std::vector<std::vector<std::vector<CacheBlock>>> macro_levels_all_swp;
 
 #endif // USE_SIMD || USE_CUDA
 

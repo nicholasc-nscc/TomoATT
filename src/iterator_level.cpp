@@ -2,7 +2,6 @@
 
 #ifdef USE_SIMD
 #include "vectorized_sweep.h"
-#include "iterator_blocked.h"
 #endif
 
 

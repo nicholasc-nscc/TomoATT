@@ -1,8 +1,5 @@
 #include "iterator.h"
 
-#if defined USE_SIMD
-#include "iterator_blocked.h"
-#endif
 
 // test no valence anymore
 
