@@ -303,15 +303,6 @@ void Iterator::assign_processes_for_levels(Grid& grid, InputParams& IP) {
         return;
     }
 
-    // Blocked sweep, use separate way to pre-load the data.
-    if (IP.get_stencil_type() == BLOCKED) {
-            int dump_length = NSIMD;
-            // stencil dumps
-            // first orders
-            dump_c__ = (CUSTOMREAL*) aligned_alloc(ALIGN, dump_length*sizeof(CUSTOMREAL));// center of stencil
-        return;
-    }
-
 #if defined USE_SIMD || defined USE_CUDA
 
     preload_indices(vv_iip, vv_jjt, vv_kkr,  0, 0, 0);
