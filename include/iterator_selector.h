@@ -33,6 +33,8 @@ void select_iterator(InputParams& IP, Grid& grid, Source& src, IO_utils& io, con
                 if (IP.get_stencil_type() == UPWIND){
                     // std::cout << "WARNING: Upwind Stencil type not supported, using non upwind scheme (LF)" << std::endl;
                     It = std::make_unique<Iterator_level_1st_order_upwind>(IP, grid, src, io, src_name, first_init, is_teleseismic, is_second_run);
+                } else if (IP.get_stencil_type() == OPT) {
+                    It = std::make_unique<Iterator_level_1st_order_opt>(IP, grid, src, io, src_name, first_init, is_teleseismic, is_second_run);
                 } else {
                     It = std::make_unique<Iterator_level_1st_order>(IP, grid, src, io, src_name, first_init, is_teleseismic, is_second_run);
                 }

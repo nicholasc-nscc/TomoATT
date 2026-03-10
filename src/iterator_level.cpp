@@ -4,6 +4,214 @@
 #include "vectorized_sweep.h"
 #endif
 
+Iterator_level_1st_order_opt::Iterator_level_1st_order_opt(InputParams& IP, Grid& grid, Source& src, IO_utils& io, const std::string& src_name, bool first_init, bool is_teleseismic_in, bool is_second_run_in) \
+                         : Iterator_level(IP, grid, src, io, src_name, first_init, is_teleseismic_in, is_second_run_in) {
+    // initialization is done in the base class
+}
+void Iterator_level_1st_order_opt::build_aosoa(Grid& grid) {
+    vv_simd_blocks_all_swp.resize(8);
+    
+    // Loop over all 8 FSM causal directions
+    for(int iswp = 0; iswp < 8; iswp++) {
+        set_sweep_direction(iswp); 
+        int n_levels = ijk_for_this_subproc.size();
+        vv_simd_blocks_all_swp[iswp].resize(n_levels);
+
+        for(int i_level = 0; i_level < n_levels; i_level++) {
+            int n_nodes = ijk_for_this_subproc[i_level].size();
+            int num_iter = n_nodes / NSIMD + (n_nodes % NSIMD == 0 ? 0 : 1);
+            vv_simd_blocks_all_swp[iswp][i_level].resize(num_iter);
+
+            // Fetch legacy scattered pointers for this specific level
+            int* dump_ijk   = vv_i__j__k__.at(iswp).at(i_level);
+            int* dump_ip1jk = vv_ip1j__k__.at(iswp).at(i_level);
+            int* dump_im1jk = vv_im1j__k__.at(iswp).at(i_level);
+            int* dump_ijp1k = vv_i__jp1k__.at(iswp).at(i_level);
+            int* dump_ijm1k = vv_i__jm1k__.at(iswp).at(i_level);
+            int* dump_ijkp1 = vv_i__j__kp1.at(iswp).at(i_level);
+            int* dump_ijkm1 = vv_i__j__km1.at(iswp).at(i_level);
+
+            CUSTOMREAL* v_iip   = vv_iip.at(iswp).at(i_level);
+            CUSTOMREAL* v_jjt   = vv_jjt.at(iswp).at(i_level);
+            CUSTOMREAL* v_kkr   = vv_kkr.at(iswp).at(i_level);
+            CUSTOMREAL* v_fac_a = vv_fac_a.at(iswp).at(i_level);
+            CUSTOMREAL* v_fac_b = vv_fac_b.at(iswp).at(i_level);
+            CUSTOMREAL* v_fac_c = vv_fac_c.at(iswp).at(i_level);
+            CUSTOMREAL* v_fac_f = vv_fac_f.at(iswp).at(i_level);
+            CUSTOMREAL* v_T0v   = vv_T0v.at(iswp).at(i_level);
+            CUSTOMREAL* v_T0r   = vv_T0r.at(iswp).at(i_level);
+            CUSTOMREAL* v_T0t   = vv_T0t.at(iswp).at(i_level);
+            CUSTOMREAL* v_T0p   = vv_T0p.at(iswp).at(i_level);
+            CUSTOMREAL* v_fun   = vv_fun.at(iswp).at(i_level);
+            CUSTOMREAL* v_change= vv_change.at(iswp).at(i_level);
+
+            // Pack the Array of Structs of Arrays
+            for(int _i_vec = 0; _i_vec < num_iter; _i_vec++) {
+                SIMDBlock& block = vv_simd_blocks_all_swp[iswp][i_level][_i_vec];
+                block.valid_lanes = 0;
+
+                for(int l = 0; l < NSIMD; l++) {
+                    int idx = _i_vec * NSIMD + l;
+                    if(idx < n_nodes) {
+                        block.valid_lanes++;
+                        
+                        // Map Indices
+                        block.idx_c[l]   = dump_ijk[idx];
+                        block.idx_ip1[l] = dump_ip1jk[idx];
+                        block.idx_im1[l] = dump_im1jk[idx];
+                        block.idx_jp1[l] = dump_ijp1k[idx];
+                        block.idx_jm1[l] = dump_ijm1k[idx];
+                        block.idx_kp1[l] = dump_ijkp1[idx];
+                        block.idx_km1[l] = dump_ijkm1[idx];
+
+                        // Map Physics and Geometry Vectors contiguously
+                        block.i[l] = v_iip[idx];
+                        block.j[l] = v_jjt[idx];
+                        block.k[l] = v_kkr[idx];
+                        block.fac_a[l] = v_fac_a[idx];
+                        block.fac_b[l] = v_fac_b[idx];
+                        block.fac_c[l] = v_fac_c[idx];
+                        block.fac_f[l] = v_fac_f[idx];
+                        block.T0v[l]   = v_T0v[idx];
+                        block.T0p[l]   = v_T0p[idx];
+                        block.T0t[l]   = v_T0t[idx];
+                        block.T0r[l]   = v_T0r[idx];
+                        block.fun[l]   = v_fun[idx];
+                        block.change[l]   = v_change[idx];
+                    } else {
+                        // Pad safely to prevent vector gather segregation faults
+                        block.idx_c[l] = 0; 
+                        block.idx_ip1[l] = 0; block.idx_im1[l] = 0;
+                        block.idx_jp1[l] = 0; block.idx_jm1[l] = 0;
+                        block.idx_kp1[l] = 0; block.idx_km1[l] = 0;
+                        
+                        block.i[l] = 0.0; block.j[l] = 0.0; block.k[l] = 0.0;
+                        block.fac_a[l] = 0.0; block.fac_b[l] = 0.0; block.fac_c[l] = 0.0; block.fac_f[l] = 0.0;
+                        block.T0v[l] = 0.0; block.T0p[l] = 0.0; block.T0t[l] = 0.0; block.T0r[l] = 0.0;
+                        block.fun[l] = 0.0; block.change[l] = 0.0;
+                    }
+                }
+            }
+        }
+    }
+}
+
+void Iterator_level_1st_order_opt::do_sweep(int iswp, Grid& grid, InputParams& IP) {
+
+    if (!use_gpu) {
+        set_sweep_direction(iswp);
+        
+        if (!aosoa_built) {
+            build_aosoa(grid);
+            aosoa_built = true;
+        }
+
+#if defined(USE_AVX512) || defined(USE_AVX)
+        __mT v_DP_inv      = _mmT_set1_pT(1.0/dp);
+        __mT v_DT_inv      = _mmT_set1_pT(1.0/dt);
+        __mT v_DR_inv      = _mmT_set1_pT(1.0/dr);
+        __mT v_DP_inv_half = _mmT_set1_pT(1.0/dp*0.5);
+        __mT v_DT_inv_half = _mmT_set1_pT(1.0/dt*0.5);
+        __mT v_DR_inv_half = _mmT_set1_pT(1.0/dr*0.5);
+
+        int n_levels = ijk_for_this_subproc.size();
+        auto& sweep_blocks = vv_simd_blocks_all_swp[iswp];
+
+        for (int i_level = 0; i_level < n_levels; i_level++) {
+            int num_iter = sweep_blocks[i_level].size();
+
+            for (int _i_vec = 0; _i_vec < num_iter; _i_vec++) {
+                SIMDBlock& block = sweep_blocks[i_level][_i_vec];
+
+                // Solution 4: Software Prefetching
+                // Forces the memory controller to stream the next struct into L1 
+                // while the ALUs are calculating the current struct.
+                if (_i_vec + 1 < num_iter) {
+                    _mm_prefetch((const char*)&sweep_blocks[i_level][_i_vec + 1], _MM_HINT_T0);
+                }
+
+                // GATHER tau_loc
+                // The tau field changes, so we must still gather from the main grid using our packed indices
+                __mT v_c__ = load_mem_gen_to_mTd(grid.tau_loc, block.idx_c);
+                __mT v_p__ = load_mem_gen_to_mTd(grid.tau_loc, block.idx_ip1);
+                __mT v_m__ = load_mem_gen_to_mTd(grid.tau_loc, block.idx_im1);
+                __mT v__p_ = load_mem_gen_to_mTd(grid.tau_loc, block.idx_jp1);
+                __mT v__m_ = load_mem_gen_to_mTd(grid.tau_loc, block.idx_jm1);
+                __mT v___p = load_mem_gen_to_mTd(grid.tau_loc, block.idx_kp1);
+                __mT v___m = load_mem_gen_to_mTd(grid.tau_loc, block.idx_km1);
+
+                // CONTIGUOUS LOADS for Parameters (Solutions 2 & 3 Combined)
+                // Instead of 12 distinct scatter/gather operations across global arrays, 
+                // we load directly from the locally-mapped AoSoA block into SIMD registers.
+                __mT v_iip   = _mmT_loadu_pT(block.i);
+                __mT v_jjt   = _mmT_loadu_pT(block.j);
+                __mT v_kkr   = _mmT_loadu_pT(block.k);
+                __mT v_fac_a = _mmT_loadu_pT(block.fac_a);
+                __mT v_fac_b = _mmT_loadu_pT(block.fac_b);
+                __mT v_fac_c = _mmT_loadu_pT(block.fac_c);
+                __mT v_fac_f = _mmT_loadu_pT(block.fac_f);
+                __mT v_T0v   = _mmT_loadu_pT(block.T0v);
+                __mT v_T0p   = _mmT_loadu_pT(block.T0p);
+                __mT v_T0t   = _mmT_loadu_pT(block.T0t);
+                __mT v_T0r   = _mmT_loadu_pT(block.T0r);
+                __mT v_fun   = _mmT_loadu_pT(block.fun);
+                __mT v_change   = _mmT_loadu_pT(block.change);
+
+                // // Dynamic MPI Masking
+                // CUSTOMREAL temp_change[NSIMD];
+                // for(int l = 0; l < NSIMD; l++) {
+                //     temp_change[l] = (l < block.valid_lanes && grid.is_changed[block.idx_c[l]]) ? 1.0 : 0.0;
+                // }
+                // __mT v_change = _mmT_load_pT(temp_change);
+
+                __mT v_pp1, v_pp2, v_pt1, v_pt2, v_pr1, v_pr2;
+
+                // Fire standard kernel
+                vect_stencil_1st_pre_simd(v_iip, v_jjt, v_kkr,
+                                          v_c__,
+                                          v_p__, v_m__, v__p_, v__m_, v___p, v___m,
+                                          v_pp1, v_pp2, v_pt1, v_pt2, v_pr1, v_pr2,
+                                          v_DP_inv, v_DT_inv, v_DR_inv,
+                                          v_DP_inv_half, v_DT_inv_half, v_DR_inv_half,
+                                          loc_I, loc_J, loc_K);
+
+                vect_stencil_1st_3rd_apre_simd(v_c__, v_fac_a, v_fac_b, v_fac_c, v_fac_f,
+                                               v_T0v, v_T0p, v_T0t, v_T0r, v_fun, v_change,
+                                               v_pp1, v_pp2, v_pt1, v_pt2, v_pr1, v_pr2,
+                                               v_DP_inv, v_DT_inv, v_DR_inv);
+
+                // Store Result
+                _mmT_store_pT(dump_c__, v_c__);
+                for (int l = 0; l < block.valid_lanes; l++) {
+                    grid.tau_loc[block.idx_c[l]] = dump_c__[l];
+                }
+
+            } // end loop _i_vec
+
+            // Standard MPI Synchronisation 
+            synchronize_all_sub();
+
+        } // end loop i_level
+
+#elif defined(USE_ARM_SVE)
+        // Insert structurally identical logic adapted for SVE bounds and instructions.
+#endif
+
+    } else {
+#if defined USE_CUDA
+        cuda_copy_tau_to_device(gpu_grid, grid.tau_loc);
+        cuda_run_iteration_forward(gpu_grid, iswp);
+        cuda_copy_tau_to_host(gpu_grid, grid.tau_loc);
+#else
+        std::cout << "Error: USE_CUDA is not defined" << std::endl;
+        exit(1);
+#endif
+    }
+
+    if (subdom_main) {
+        calculate_boundary_nodes(grid);
+    }
+}
 
 Iterator_level::Iterator_level(InputParams& IP, Grid& grid, Source& src, IO_utils& io, const std::string& src_name, bool first_init, bool is_teleseismic_in, bool is_second_run_in) \
                 : Iterator(IP, grid, src, io, src_name, first_init, is_teleseismic_in, is_second_run_in) {
