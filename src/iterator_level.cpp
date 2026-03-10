@@ -149,7 +149,7 @@ void Iterator_level_1st_order_blocked::initialize_blocks(Grid& grid) {
         
         int n_levels = ijk_for_this_subproc.size(); 
         for (int i_level = 0; i_level < n_levels; i_level++) {
-            int n_nodes = vv_i__j__k__.at(iswp).at(i_level).size(); 
+            size_t n_nodes = ijk_for_this_subproc[i_level].size();            
             for (int i_node = 0; i_node < n_nodes; i_node++) {
                 int iip, jjt, kkr;
                 V2I(ijk_for_this_subproc[i_level][i_node], iip, jjt, kkr);
@@ -207,9 +207,6 @@ void Iterator_level_1st_order_blocked::initialize_blocks(Grid& grid) {
                             b.micro_dump_kp1[m_lvl].push_back(b.micro_dump_kp1[m_lvl].back());
                             b.micro_dump_km1[m_lvl].push_back(b.micro_dump_km1[m_lvl].back());
                             
-                            b.micro_iip[m_lvl].push_back(b.micro_iip[m_lvl].back());
-                            b.micro_jjt[m_lvl].push_back(b.micro_jjt[m_lvl].back());
-                            b.micro_kkr[m_lvl].push_back(b.micro_kkr[m_lvl].back());
                             b.micro_fac_a[m_lvl].push_back(b.micro_fac_a[m_lvl].back());
                             b.micro_fac_b[m_lvl].push_back(b.micro_fac_b[m_lvl].back());
                             b.micro_fac_c[m_lvl].push_back(b.micro_fac_c[m_lvl].back());
