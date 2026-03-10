@@ -181,6 +181,7 @@ void Iterator_level_1st_order_blocked::initialize_blocks(Grid& grid) {
                     int m_k = (r_step > 0) ? (kkr - target_block->k_start) : (target_block->k_end - 1 - kkr);
                     int micro_level = m_i + m_j + m_k;
                     
+                    target_block->micro_ijk_level[micro_level].push_back(vv_i__j__k__.at(iswp).at(i_level)[i_node]);
                     // Directly push TomoATT's pre-calculated indices (guarantees perfect MPI bridging)
                     target_block->micro_dump_ijk[micro_level].push_back(vv_i__j__k__.at(iswp).at(i_level)[i_node]);
                     target_block->micro_dump_ip1[micro_level].push_back(vv_ip1j__k__.at(iswp).at(i_level)[i_node]);
@@ -221,6 +222,7 @@ void Iterator_level_1st_order_blocked::initialize_blocks(Grid& grid) {
                         CacheBlock::NodeData safe_nd = block.micro_node_data[m_level].back();
 
                         for (int pad = 0; pad < padding_needed; pad++) {
+                            block.micro_ijk_level[m_level].push_back(safe_idx);
                             block.micro_dump_ijk[m_level].push_back(safe_idx);
                             block.micro_dump_ip1[m_level].push_back(safe_idx);
                             block.micro_dump_im1[m_level].push_back(safe_idx);
