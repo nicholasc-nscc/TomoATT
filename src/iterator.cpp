@@ -559,7 +559,7 @@ void Iterator::preload_indices_1d(std::vector<std::vector<T*>> &vvv, \
     }
 }
 
-void Iterator::initialize_blocks(Grid& grid) {
+void Iterator_level_1st_order_blocked::initialize_blocks(Grid& grid) {
     // 1. Define L1-Cache friendly block dimensions
     // 16x16x16 doubles = 32 KB (Fits perfectly in modern L1 Data Caches)
     const int BX = 16;
