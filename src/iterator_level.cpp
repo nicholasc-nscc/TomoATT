@@ -311,79 +311,74 @@ void Iterator_level_1st_order_blocked::do_sweep(int iswp, Grid& grid, InputParam
         for (size_t b_idx = 0; b_idx < macro_levels[b_level].size(); b_idx++) {
             CacheBlock& block = macro_levels[b_level][b_idx];
 
-            // Local Gauss-Seidel iterations inside the block until local convergence
-            // Because the block is in L1, these iterations are virtually free.
-            for(int local_iter = 0; local_iter < 3; local_iter++) { 
-                
-                int num_micro_levels = block.micro_ijk_level.size();
+            int num_micro_levels = block.micro_ijk_level.size();
 
-                // 2. Iterate over MICRO-levels (Wavefronts inside the L1-resident block)
-                for (int m_level = 0; m_level < num_micro_levels; m_level++) {
-                    int n_nodes = block.micro_ijk_level[m_level].size();
-                    int num_iter = n_nodes / NSIMD + (n_nodes % NSIMD == 0 ? 0 : 1);
+            // 2. Iterate over MICRO-levels (Wavefronts inside the L1-resident block)
+            for (int m_level = 0; m_level < num_micro_levels; m_level++) {
+                int n_nodes = block.micro_ijk_level[m_level].size();
+                int num_iter = n_nodes / NSIMD + (n_nodes % NSIMD == 0 ? 0 : 1);
 
-                    int* dump_ijk   = block.micro_dump_ijk[m_level].data();
-                    int* dump_ip1jk = block.micro_dump_ip1[m_level].data();
-                    int* dump_im1jk = block.micro_dump_im1[m_level].data();
-                    int* dump_ijp1k = block.micro_dump_jp1[m_level].data(); 
-                    int* dump_ijm1k = block.micro_dump_jm1[m_level].data(); 
-                    int* dump_ijkp1 = block.micro_dump_kp1[m_level].data(); 
-                    int* dump_ijkm1 = block.micro_dump_km1[m_level].data();
-                    auto* node_data = block.micro_node_data[m_level].data();
+                int* dump_ijk   = block.micro_dump_ijk[m_level].data();
+                int* dump_ip1jk = block.micro_dump_ip1[m_level].data();
+                int* dump_im1jk = block.micro_dump_im1[m_level].data();
+                int* dump_ijp1k = block.micro_dump_jp1[m_level].data(); 
+                int* dump_ijm1k = block.micro_dump_jm1[m_level].data(); 
+                int* dump_ijkp1 = block.micro_dump_kp1[m_level].data(); 
+                int* dump_ijkm1 = block.micro_dump_km1[m_level].data();
+                auto* node_data = block.micro_node_data[m_level].data();
 
-                    // 3. Vectorized execution (Hitting L1 Cache!)
-                    for (int _i_vec = 0; _i_vec < num_iter; _i_vec++) {
-                        int i_vec = _i_vec * NSIMD;
+                // 3. Vectorized execution (Hitting L1 Cache!)
+                for (int _i_vec = 0; _i_vec < num_iter; _i_vec++) {
+                    int i_vec = _i_vec * NSIMD;
 
-                        // Hardware prefetch instruction targeting L1 for the next iteration
-                        if (_i_vec + 1 < num_iter) {
-                            _mm_prefetch((const char*)&grid.tau_loc[dump_ijk[i_vec + NSIMD]], _MM_HINT_T0);
-                        }
+                    // Hardware prefetch instruction targeting L1 for the next iteration
+                    if (_i_vec + 1 < num_iter) {
+                        _mm_prefetch((const char*)&grid.tau_loc[dump_ijk[i_vec + NSIMD]], _MM_HINT_T0);
+                    }
 
-                        // These gathers now hit the L1 Cache because the block is resident
-                        __mT v_c__ = load_mem_gen_to_mTd(grid.tau_loc, &dump_ijk[i_vec]);
-                        __mT v_p__ = load_mem_gen_to_mTd(grid.tau_loc, &dump_ip1jk[i_vec]);
-                        __mT v_m__ = load_mem_gen_to_mTd(grid.tau_loc, &dump_im1jk[i_vec]);
-                        __mT v__p_    = load_mem_gen_to_mTd(grid.tau_loc, &dump_ijp1k[i_vec]);
-                        __mT v__m_    = load_mem_gen_to_mTd(grid.tau_loc, &dump_ijm1k[i_vec]);
-                        __mT v___p    = load_mem_gen_to_mTd(grid.tau_loc, &dump_ijkp1[i_vec]);
-                        __mT v___m    = load_mem_gen_to_mTd(grid.tau_loc, &dump_ijkm1[i_vec]);
+                    // These gathers now hit the L1 Cache because the block is resident
+                    __mT v_c__ = load_mem_gen_to_mTd(grid.tau_loc, &dump_ijk[i_vec]);
+                    __mT v_p__ = load_mem_gen_to_mTd(grid.tau_loc, &dump_ip1jk[i_vec]);
+                    __mT v_m__ = load_mem_gen_to_mTd(grid.tau_loc, &dump_im1jk[i_vec]);
+                    __mT v__p_    = load_mem_gen_to_mTd(grid.tau_loc, &dump_ijp1k[i_vec]);
+                    __mT v__m_    = load_mem_gen_to_mTd(grid.tau_loc, &dump_ijm1k[i_vec]);
+                    __mT v___p    = load_mem_gen_to_mTd(grid.tau_loc, &dump_ijkp1[i_vec]);
+                    __mT v___m    = load_mem_gen_to_mTd(grid.tau_loc, &dump_ijkm1[i_vec]);
 
-                        // Load unified Array-of-Structures node data (Contiguous Load!)
-                        // This eliminates 12 separate memory streams from the original code.
-                        __mT v_fac_a  = _mmT_loadu_pT(&node_data[i_vec].fac_a);
-                        __mT v_fac_b  = _mmT_loadu_pT(&node_data[i_vec].fac_b);
-                        __mT v_fac_c  = _mmT_loadu_pT(&node_data[i_vec].fac_c);
-                        __mT v_fac_f  = _mmT_loadu_pT(&node_data[i_vec].fac_f);
-                        __mT v_T0v    = _mmT_loadu_pT(&node_data[i_vec].T0v);
-                        __mT v_T0r    = _mmT_loadu_pT(&node_data[i_vec].T0r);
-                        __mT v_T0t    = _mmT_loadu_pT(&node_data[i_vec].T0t);
-                        __mT v_T0p    = _mmT_loadu_pT(&node_data[i_vec].T0p);
-                        __mT v_fun    = _mmT_loadu_pT(&node_data[i_vec].fun);
-                        __mT v_change = _mmT_loadu_pT(&node_data[i_vec].change);
+                    // Load unified Array-of-Structures node data (Contiguous Load!)
+                    // This eliminates 12 separate memory streams from the original code.
+                    __mT v_fac_a  = _mmT_loadu_pT(&node_data[i_vec].fac_a);
+                    __mT v_fac_b  = _mmT_loadu_pT(&node_data[i_vec].fac_b);
+                    __mT v_fac_c  = _mmT_loadu_pT(&node_data[i_vec].fac_c);
+                    __mT v_fac_f  = _mmT_loadu_pT(&node_data[i_vec].fac_f);
+                    __mT v_T0v    = _mmT_loadu_pT(&node_data[i_vec].T0v);
+                    __mT v_T0r    = _mmT_loadu_pT(&node_data[i_vec].T0r);
+                    __mT v_T0t    = _mmT_loadu_pT(&node_data[i_vec].T0t);
+                    __mT v_T0p    = _mmT_loadu_pT(&node_data[i_vec].T0p);
+                    __mT v_fun    = _mmT_loadu_pT(&node_data[i_vec].fun);
+                    __mT v_change = _mmT_loadu_pT(&node_data[i_vec].change);
 
-                        // Execute core stencil logic (ALU bound now, not Memory bound)
-                        vect_stencil_1st_pre_simd(v_c__, \
-                                                  v_p__,    v_m__,    v__p_,    v__m_,    v___p,    v___m, \
-                                                  v_pp1, v_pp2, v_pt1, v_pt2, v_pr1, v_pr2, \
-                                                  v_DP_inv, v_DT_inv, v_DR_inv, \
-                                                  v_DP_inv_half, v_DT_inv_half, v_DR_inv_half, \
-                                                  loc_I, loc_J, loc_K);
+                    // Execute core stencil logic (ALU bound now, not Memory bound)
+                    vect_stencil_1st_pre_simd(v_c__, \
+                                              v_p__,    v_m__,    v__p_,    v__m_,    v___p,    v___m, \
+                                              v_pp1, v_pp2, v_pt1, v_pt2, v_pr1, v_pr2, \
+                                              v_DP_inv, v_DT_inv, v_DR_inv, \
+                                              v_DP_inv_half, v_DT_inv_half, v_DR_inv_half, \
+                                              loc_I, loc_J, loc_K);
 
-                        vect_stencil_1st_3rd_apre_simd(v_c__, v_fac_a, v_fac_b, v_fac_c, v_fac_f, \
-                                                       v_T0v, v_T0p, v_T0t, v_T0r, v_fun, v_change, \
-                                                       v_pp1, v_pp2, v_pt1, v_pt2, v_pr1, v_pr2, \
-                                                       v_DP_inv, v_DT_inv, v_DR_inv);
+                    vect_stencil_1st_3rd_apre_simd(v_c__, v_fac_a, v_fac_b, v_fac_c, v_fac_f, \
+                                                   v_T0v, v_T0p, v_T0t, v_T0r, v_fun, v_change, \
+                                                   v_pp1, v_pp2, v_pt1, v_pt2, v_pr1, v_pr2, \
+                                                   v_DP_inv, v_DT_inv, v_DR_inv);
 
-                        // Store back to L1 Cache
-                        _mmT_store_pT(dump_c__, v_c__);
-                        for (int i = 0; i < NSIMD; i++) {
-                            if(i_vec+i >= n_nodes) break;
-                            grid.tau_loc[dump_ijk[i_vec+i]] = dump_c__[i];
-                        }
-                    } // micro-vector loop
-                } // micro-level loop
-            } // local block sweeps
+                    // Store back to L1 Cache
+                    _mmT_store_pT(dump_c__, v_c__);
+                    for (int i = 0; i < NSIMD; i++) {
+                        if(i_vec+i >= n_nodes) break;
+                        grid.tau_loc[dump_ijk[i_vec+i]] = dump_c__[i];
+                    }
+                } // micro-vector loop
+            } // micro-level loop
         } // macro block loop
         
         // MPI synchronization boundary now happens less frequently, 

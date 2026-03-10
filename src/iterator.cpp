@@ -305,6 +305,10 @@ void Iterator::assign_processes_for_levels(Grid& grid, InputParams& IP) {
 
     // Blocked sweep, use separate way to pre-load the data.
     if (IP.get_stencil_type() == BLOCKED) {
+            int dump_length = NSIMD;
+            // stencil dumps
+            // first orders
+            dump_c__ = (CUSTOMREAL*) aligned_alloc(ALIGN, dump_length*sizeof(CUSTOMREAL));// center of stencil
         return;
     }
 
