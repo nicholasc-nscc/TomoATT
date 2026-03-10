@@ -212,6 +212,36 @@ void Iterator_level_1st_order_blocked::initialize_blocks(Grid& grid) {
                         }
                     }
 
+                    for (int m_level = 0; m_level < max_micro_level; m_level++) {
+                        int current_size = block.micro_ijk_level[m_level].size();
+                        if (current_size == 0) continue;
+                        
+                        int remainder = current_size % NSIMD;
+                        if (remainder != 0) {
+                            int padding_needed = NSIMD - remainder;
+                            
+                            // Get the very last valid element to duplicate safely
+                            int safe_idx = block.micro_dump_ijk[m_level].back();
+                            CacheBlock::NodeData safe_nd = block.micro_node_data[m_level].back();
+
+                            for (int pad = 0; pad < padding_needed; pad++) {
+                                // Push the safe index (0 or a valid previous index) 
+                                // to prevent out-of-bounds gathers.
+                                block.micro_ijk_level[m_level].push_back(safe_idx);
+                                block.micro_dump_ijk[m_level].push_back(safe_idx);
+                                block.micro_dump_ip1[m_level].push_back(safe_idx);
+                                block.micro_dump_im1[m_level].push_back(safe_idx);
+                                block.micro_dump_jp1[m_level].push_back(safe_idx);
+                                block.micro_dump_jm1[m_level].push_back(safe_idx);
+                                block.micro_dump_kp1[m_level].push_back(safe_idx);
+                                block.micro_dump_km1[m_level].push_back(safe_idx);
+                                
+                                // Push the safe NodeData struct
+                                block.micro_node_data[m_level].push_back(safe_nd);
+                            }
+                        }
+                    }
+
                     // Append the fully constructed block to the global schedule
                     macro_levels_all_swp[iswp][macro_level].push_back(block);
                 }
