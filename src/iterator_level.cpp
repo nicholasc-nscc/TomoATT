@@ -122,9 +122,9 @@ void Iterator_level_1st_order_blocked::initialize_blocks(Grid& grid) {
         for (int I = 0; I < nb_p; ++I) {
             for (int J = 0; J < nb_t; ++J) {
                 for (int K = 0; K < nb_r; ++K) {
-                    int level_I = (p_step > 0) ? I : (nb_p - 1 - I);
-                    int level_J = (t_step > 0) ? J : (nb_t - 1 - J);
-                    int level_K = (r_step > 0) ? K : (nb_r - 1 - K);
+                    int level_I = I;
+                    int level_J = J;
+                    int level_K = K;
                     
                     CacheBlock block;
                     block.i_start = I * BX; block.i_end = std::min((I + 1) * BX, np);
@@ -154,9 +154,9 @@ void Iterator_level_1st_order_blocked::initialize_blocks(Grid& grid) {
                 int iip, jjt, kkr;
                 V2I(ijk_for_this_subproc[i_level][i_node], iip, jjt, kkr);
                 int I = iip / BX; int J = jjt / BY; int K = kkr / BZ;
-                int level_I = (p_step > 0) ? I : (nb_p - 1 - I);
-                int level_J = (t_step > 0) ? J : (nb_t - 1 - J);
-                int level_K = (r_step > 0) ? K : (nb_r - 1 - K);
+                int level_I = I;
+                int level_J = J;
+                int level_K = K;
                 
                 CacheBlock* t_blk = nullptr;
                 for (auto& b : macro_levels_all_swp[iswp][level_I + level_J + level_K]) {
@@ -164,9 +164,9 @@ void Iterator_level_1st_order_blocked::initialize_blocks(Grid& grid) {
                 }
                 
                 if (t_blk) {
-                    int m_i = (p_step > 0) ? (iip - t_blk->i_start) : (t_blk->i_end - 1 - iip);
-                    int m_j = (t_step > 0) ? (jjt - t_blk->j_start) : (t_blk->j_end - 1 - jjt);
-                    int m_k = (r_step > 0) ? (kkr - t_blk->k_start) : (t_blk->k_end - 1 - kkr);
+                    int m_i = iip - t_blk->i_start;
+                    int m_j = jjt - t_blk->j_start;
+                    int m_k = kkr - t_blk->k_start;
                     int m_lvl = m_i + m_j + m_k;
                     
                     t_blk->micro_dump_ijk[m_lvl].push_back(vv_i__j__k__.at(iswp).at(i_level)[i_node]);
