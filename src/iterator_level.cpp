@@ -242,9 +242,7 @@ void Iterator_level_1st_order_blocked::do_sweep(int iswp, Grid& grid, InputParam
 
         // MACRO: Safely buffers std::vector data into 64-byte aligned memory for _mmT_load_pT
         #define LOAD_SOA_ALIGNED(vec_name, array_name) \
-            alignas(64) CUSTOMREAL local_##array_name[NSIMD]; \
-            for(int l=0; l<NSIMD; l++) local_##array_name[l] = block.array_name[m_level][i_vec+l]; \
-            __mT vec_name = _mmT_loadu_pT(local_##array_name);
+            __mT vec_name = _mmT_loadu_pT(&block.array_name[m_level][i_vec]);
 
         auto& macro_levels = macro_levels_all_swp[iswp];
         for (int b_level = 0; b_level < macro_levels.size(); b_level++) {
