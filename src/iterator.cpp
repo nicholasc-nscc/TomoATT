@@ -1,4 +1,5 @@
 #include "iterator.h"
+#include <papi.h>
 
 // test no valence anymore
 
