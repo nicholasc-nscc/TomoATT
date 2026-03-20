@@ -2,6 +2,7 @@
 
 #ifdef USE_SIMD
 #include "vectorized_sweep.h"
+#include <papi.h>
 #endif
 
 
@@ -153,6 +154,10 @@ void Iterator_level_1st_order::do_sweep(int iswp, Grid& grid, InputParams& IP){
 
 #elif USE_AVX512 || USE_AVX
 
+        // Initialize PAPI
+        int events[4] = {PAPI_L1_DCM, PAPI_L1_DCA, PAPI_L2_DCH, PAPI_L2_DCR}; // L1 Data Cache Misses, L1 Data Cache Accesses
+        long long values[4];
+        PAPI_start_counters(events, 4);
         // preload constants
         __mT v_DP_inv      = _mmT_set1_pT(1.0/dp);
         __mT v_DT_inv      = _mmT_set1_pT(1.0/dt);
@@ -240,6 +245,12 @@ void Iterator_level_1st_order::do_sweep(int iswp, Grid& grid, InputParams& IP){
             synchronize_all_sub();
 
         } // end of i_level loop
+        PAPI_stop_counters(values, 4);
+    std::cout << "L1 Cache Accesses: " << values[1] << std::endl;
+    std::cout << "L1 Cache Misses:   " << values[0] << std::endl;
+    std::cout << "L1 Miss Rate:      " << (double)values[0] / values[1] * 100.0 << "%" << std::endl;
+    std::cout << "L2 Cache Hits: " << values[2] << std::endl;
+    std::cout << "L2 Cache Reads:   " << values[3] << std::endl;
 
 #elif USE_ARM_SVE
 

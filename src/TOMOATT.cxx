@@ -21,6 +21,8 @@
 #include "cuda_initialize.cuh"
 #endif
 
+#include "papi.h"
+
 //#ifdef USE_BLAS
 //#include "cblas.h"
 //#endif
@@ -33,6 +35,12 @@ int main(int argc, char *argv[])
 
     // initialize mpi
     initialize_mpi();
+
+    int retval = PAPI_library_init(PAPI_VER_CURRENT);
+    if (retval != PAPI_VER_CURRENT) {
+        std::cerr << "PAPI library initialization error!" << std::endl;
+        // Handle error or exit
+    }
 
     stdout_by_rank_zero("------------------------------------------------------");
     stdout_by_rank_zero(("TOMOATT version: " + std::string(TOMOATT_VERSION)).c_str());
@@ -121,6 +129,7 @@ int main(int argc, char *argv[])
 #endif
 
     // finalize mpi
+    PAPI_shutdown();
     finalize_mpi();
 
     stdout_by_rank_zero("------------------------------------------------------");
