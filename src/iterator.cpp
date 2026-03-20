@@ -586,6 +586,13 @@ void Iterator::run_iteration_forward(InputParams& IP, Grid& grid, IO_utils& io, 
     }
 
     // start iteration
+    // Initialize PAPI
+    int EventSet = PAPI_NULL;
+    int events[4] = {PAPI_L1_DCM, PAPI_L1_DCA, PAPI_L2_DCH, PAPI_L2_DCR}; // L1 Data Cache Misses, L1 Data Cache Accesses
+    long long values[4];
+    PAPI_create_eventset(&EventSet);
+    PAPI_add_events(EventSet, events, 4);
+    PAPI_start(EventSet);
     while (true) {
 
         // store tau for comparison
@@ -678,6 +685,12 @@ iter_end:
         if (if_test)
             std::cout << "errors at iteration " << iter_count << ": " << cur_err_L1 << ", " << cur_err_Linf << std::endl;
         std::cout << "id_sim: " << id_sim << ", converged at iteration " << iter_count << std::endl;
+        PAPI_stop(EventSet, values);    
+        std::cout << "L1 Cache Accesses: " << values[1] << std::endl;
+        std::cout << "L1 Cache Misses:   " << values[0] << std::endl;
+        std::cout << "L1 Miss Rate:      " << (double)values[0] / values[1] * 100.0 << "%" << std::endl;
+        std::cout << "L2 Cache Hits: " << values[2] << std::endl;
+        std::cout << "L2 Cache Reads:   " << values[3] << std::endl;
     }
 
     // calculate T
